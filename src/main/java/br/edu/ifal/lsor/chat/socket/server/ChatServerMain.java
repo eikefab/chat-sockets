@@ -13,6 +13,11 @@ public class ChatServerMain {
 
     public static void main(String[] args) {
         ChatServer server = new ChatServer(SERVER_SOCKET_PORT, ChatServerMain::handleClient);
+        
+        // Adiciona um gatilho ("hook") no sistema operacional.
+        // Se voce apertar Ctrl+C no terminal, ele chama o stopServer() antes de morrer.
+        Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
+        
         server.initServer();
     }
 
@@ -20,38 +25,39 @@ public class ChatServerMain {
         String clientIp = socket.getInetAddress().getHostAddress();
         System.out.println("[LOG] Novo cliente conectado: " + clientIp);
 
-        // Abrimos o reader para ler e o writer para responder ao cliente
         try (
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)
         ) {
             String line;
             
-            // Loop de escuta ativa
             while ((line = reader.readLine()) != null) {
-                
-                // Desserializa o JSON recebido
                 ChatMessage message = ChatMessage.fromJson(line);
                 
-                // Logs do sistema no terminal do servidor
-                System.out.println("   [LOG] Mensagem recebida de " + clientIp + ":");
+                // Task 6 e 22: Identifica o comando de saida
+                if (message.getMessage().trim().equalsIgnoreCase("/sair")) {
+                    System.out.println("[LOG] Cliente " + clientIp + " solicitou desconexao.");
+                    writer.println("CONFIRMACAO: Voce foi desconectado do servidor.");
+                    break; // Quebra o loop, enviando o fluxo direto para o finally (onde o socket fecha)
+                }
+
+                System.out.println("[LOG] Mensagem recebida de " + clientIp + ":");
                 System.out.println("   |- ID: " + message.getId());
-                System.out.println("   |- Data: " + message.getCreatedAt());
                 System.out.println("   |- Texto: " + message.getMessage());
 
-                // Task 16: Envia uma resposta de confirmacao direta para o socket do cliente
-                writer.println("CONFIRMACAO: Mensagem recebida e processada pelo servidor.");
+                writer.println("CONFIRMACAO: Mensagem recebida pelo servidor.");
             }
         } catch (Exception exception) {
-            System.err.println("[ERRO] Falha na comunicacao com o cliente " + clientIp + ": " + exception.getMessage());
+            // Task 22: Trata quando o cliente cai sem avisar (ex: fechou o terminal abruptamente)
+            System.err.println("[AVISO] Conexao perdida com o cliente " + clientIp + ".");
         } finally {
             try {
                 if (socket != null && !socket.isClosed()) {
                     socket.close();
-                    System.out.println("[LOG] Cliente desconectado: " + clientIp);
+                    System.out.println("[LOG] Cliente desconectado e socket fechado: " + clientIp);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("[ERRO] Falha ao fechar socket do cliente.");
             }
         }
     }
