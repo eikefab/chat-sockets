@@ -2,7 +2,7 @@
 
 Este documento define o contrato desejado entre cliente e servidor para o chat em rede local. Ele descreve como o cliente deve se identificar, como diferenciar mensagens diretas, mensagens de grupo, comandos e eventos do servidor, e quais respostas devem ser esperadas.
 
-O código atual ainda usa `ChatMessage` e respostas em `String`. Este protocolo documenta o alvo de implementação para evoluir essa comunicação sem misturar texto de chat com controle do sistema.
+Versões anteriores usavam `ChatMessage` e respostas em `String`. Este protocolo define a comunicação atual usando envelopes tipados para não misturar texto de chat com controle do sistema.
 
 ## Objetivos
 
@@ -187,7 +187,7 @@ Resposta `OK`:
 | Campo | Tipo | Descrição |
 | --- | --- | --- |
 | `memberId` | `UUID` | Identificador interno do usuário. |
-| `username` | `String` | Username confirmado. |
+| `username` | `String` | Nome de usuário confirmado. |
 | `displayName` | `String` | Nome exibido confirmado. |
 
 Erros possíveis: `INVALID_PAYLOAD`, `USERNAME_ALREADY_ONLINE`.
@@ -595,7 +595,7 @@ Payload:
 | Campo | Tipo | Descrição |
 | --- | --- | --- |
 | `memberId` | `UUID` | Identificador interno. |
-| `username` | `String` | Username do usuário. |
+| `username` | `String` | Nome de usuário. |
 | `displayName` | `String` | Nome exibido. |
 
 ### USER_OFFLINE
@@ -607,7 +607,7 @@ Payload:
 | Campo | Tipo | Descrição |
 | --- | --- | --- |
 | `memberId` | `UUID` | Identificador interno. |
-| `username` | `String` | Username do usuário. |
+| `username` | `String` | Nome de usuário. |
 
 ### DIRECT_MESSAGE
 
@@ -693,7 +693,7 @@ Payload: `groupCode`, `username`, `displayName`.
 | `AUTH_REQUIRED` | Ação enviada antes de `LOGIN`. |
 | `INVALID_PAYLOAD` | Payload ausente, inválido ou com campo obrigatório vazio. |
 | `UNKNOWN_ACTION` | Ação não reconhecida. |
-| `USERNAME_ALREADY_ONLINE` | Username já conectado. |
+| `USERNAME_ALREADY_ONLINE` | Nome de usuário já conectado. |
 | `USER_NOT_FOUND` | Usuário nunca registrado na memória do servidor. |
 | `USER_OFFLINE` | Usuário existe, mas não está online. |
 | `CANNOT_MESSAGE_SELF` | Usuário tentou enviar mensagem direta para si mesmo. |

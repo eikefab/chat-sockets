@@ -2,8 +2,11 @@ package br.edu.ifal.lsor.chat.socket.server;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class ChatServer {
@@ -11,20 +14,29 @@ public class ChatServer {
   private final int port;
   private final ExecutorService pool;
   private final Consumer<Socket> handler;
-  
+  private final CountDownLatch started = new CountDownLatch(1);
+
   private ServerSocket serverSocket;
-  private boolean isRunning;
+  private volatile boolean isRunning;
 
   public ChatServer(int port, Consumer<Socket> handler) {
+    this(
+        port,
+        handler,
+        Executors.newFixedThreadPool(Math.max(4, Runtime.getRuntime().availableProcessors())));
+  }
+
+  public ChatServer(int port, Consumer<Socket> handler, ExecutorService pool) {
     this.port = port;
-    this.pool = Executors.newCachedThreadPool();
-    this.handler = handler;
+    this.pool = Objects.requireNonNull(pool, "pool");
+    this.handler = Objects.requireNonNull(handler, "handler");
   }
 
   public void initServer() {
     this.isRunning = true;
     try {
       this.serverSocket = new ServerSocket(port);
+      started.countDown();
       System.out.println("[LOG] Servidor iniciado na porta " + port);
 
       while (isRunning) {
@@ -32,8 +44,9 @@ public class ChatServer {
         pool.submit(() -> handler.accept(socket));
       }
     } catch (Exception exception) {
+      started.countDown();
       if (isRunning) {
-        exception.printStackTrace();
+        System.err.println("[ERRO] Falha no servidor: " + exception.getMessage());
       }
     }
   }
@@ -45,9 +58,20 @@ public class ChatServer {
         serverSocket.close();
       }
       pool.shutdown();
-      System.out.println("[LOG] Servidor encerrado com seguranca.");
+      System.out.println("[LOG] Servidor encerrado com segurança.");
     } catch (Exception e) {
       System.err.println("[ERRO] Falha ao encerrar o servidor: " + e.getMessage());
     }
+  }
+
+  public int getBoundPort() {
+    if (serverSocket == null) {
+      return port;
+    }
+    return serverSocket.getLocalPort();
+  }
+
+  public boolean awaitStarted(long timeout, TimeUnit unit) throws InterruptedException {
+    return started.await(timeout, unit);
   }
 }

@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    id("com.diffplug.spotless") version "8.7.0"
 }
 
 group = "br.edu.ifal.lsor"
@@ -17,4 +18,11 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        googleJavaFormat("1.22.0")
+        target("src/**/*.java")
+    }
 }
