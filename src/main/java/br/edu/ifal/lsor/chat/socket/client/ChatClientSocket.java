@@ -24,6 +24,7 @@ public class ChatClientSocket implements AutoCloseable {
   private final String host;
   private final int port;
   private final Consumer<ServerEvent> eventListener;
+  private final Runnable disconnectListener;
   private final ConcurrentMap<UUID, CompletableFuture<ServerResponse>> pendingResponses =
       new ConcurrentHashMap<>();
 
@@ -38,9 +39,15 @@ public class ChatClientSocket implements AutoCloseable {
   }
 
   public ChatClientSocket(String host, int port, Consumer<ServerEvent> eventListener) {
+    this(host, port, eventListener, () -> {});
+  }
+
+  public ChatClientSocket(
+      String host, int port, Consumer<ServerEvent> eventListener, Runnable disconnectListener) {
     this.host = host;
     this.port = port;
     this.eventListener = eventListener;
+    this.disconnectListener = disconnectListener;
   }
 
   public void openSocket() {
@@ -57,9 +64,6 @@ public class ChatClientSocket implements AutoCloseable {
       LOGGER.info("Conectado com sucesso ao servidor {}:{}", host, port);
 
     } catch (Exception exception) {
-      LOGGER.error("Erro ao conectar no servidor {}:{}", host, port);
-      LOGGER.error("Detalhe do erro: {}", exception.getMessage());
-      LOGGER.error("Verifique se o servidor está rodando e se o IP/Porta estão corretos.");
       throw new IllegalStateException("Falha ao abrir socket.", exception);
     }
   }
@@ -116,7 +120,11 @@ public class ChatClientSocket implements AutoCloseable {
     } catch (Exception exception) {
       if (running) {
         completePending(exception);
+        LOGGER.info("Conexao com o servidor encerrada.");
+        disconnectListener.run();
       }
+    } finally {
+      running = false;
     }
   }
 

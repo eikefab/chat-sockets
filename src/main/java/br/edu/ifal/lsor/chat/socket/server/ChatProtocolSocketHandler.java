@@ -36,7 +36,7 @@ public final class ChatProtocolSocketHandler {
 
   public void handle(Socket socket) {
     String clientIp = socket.getInetAddress().getHostAddress();
-    LOGGER.info("[LOG] Novo cliente conectado: {}", clientIp);
+    LOGGER.info("Novo cliente conectado: {}", clientIp);
     ChatSession session = new ChatSession();
 
     try (ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream())) {
@@ -71,9 +71,9 @@ public final class ChatProtocolSocketHandler {
         }
       }
     } catch (EOFException exception) {
-      LOGGER.warn("[AVISO] Conexão encerrada pelo cliente {}.", clientIp);
+      LOGGER.info("Conexao encerrada pelo cliente {}.", clientIp);
     } catch (Exception exception) {
-      LOGGER.warn("[AVISO] Conexão perdida com o cliente {}.", clientIp);
+      LOGGER.warn("Conexao perdida com o cliente {}.", clientIp);
     } finally {
       String username = session.username();
       if (username != null) {
@@ -95,7 +95,7 @@ public final class ChatProtocolSocketHandler {
           connection.send(event.event());
         } catch (RuntimeException exception) {
           connections.remove(username, connection);
-          LOGGER.warn("[AVISO] Falha ao enviar evento para {}.", username);
+          LOGGER.warn("Falha ao enviar evento para {}.", username);
         }
       }
     }
@@ -105,10 +105,10 @@ public final class ChatProtocolSocketHandler {
     try {
       if (socket != null && !socket.isClosed()) {
         socket.close();
-        LOGGER.info("[LOG] Cliente desconectado e socket fechado: {}", clientIp);
+        LOGGER.info("Cliente desconectado e socket fechado: {}", clientIp);
       }
     } catch (Exception exception) {
-      LOGGER.error("[ERRO] Falha ao fechar socket do cliente.");
+      LOGGER.error("Falha ao fechar socket do cliente.");
     }
   }
 }

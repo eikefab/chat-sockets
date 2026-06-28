@@ -14,6 +14,7 @@ import br.edu.ifal.lsor.chat.socket.client.ChatClientSocket;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ class ChatServerProtocolIntegrationTest {
   @Test
   void socketProtocolCorrelatesResponsesAndDeliversEvents() throws Exception {
     ChatProtocolSocketHandler handler = new ChatProtocolSocketHandler(new InMemoryChatService());
-    ChatServer server = new ChatServer(0, handler::handle);
+    ChatServer server = new ChatServer("127.0.0.1", 0, 10, handler::handle);
     Thread serverThread = new Thread(server::initServer, "chat-test-server");
     serverThread.setDaemon(true);
     serverThread.start();
@@ -89,6 +90,57 @@ class ChatServerProtocolIntegrationTest {
           () -> client.send(Actions.HEARTBEAT, Map.<String, Serializable>of()));
     } catch (Exception exception) {
       throw new AssertionError(exception);
+    }
+  }
+
+  @Test
+  void serverRejectsConnectionsAboveMaxClients() throws Exception {
+    ChatProtocolSocketHandler handler = new ChatProtocolSocketHandler(new InMemoryChatService());
+    ChatServer server = new ChatServer("127.0.0.1", 0, 1, handler::handle);
+    Thread serverThread = new Thread(server::initServer, "chat-test-server-limit");
+    serverThread.setDaemon(true);
+    serverThread.start();
+    assertTrue(server.awaitStarted(3, TimeUnit.SECONDS));
+
+    try (ChatClientSocket accepted = new ChatClientSocket("127.0.0.1", server.getBoundPort())) {
+      accepted.openSocket();
+
+      IllegalStateException exception =
+          assertThrows(
+              IllegalStateException.class,
+              () -> {
+                try (ChatClientSocket rejected =
+                    new ChatClientSocket("127.0.0.1", server.getBoundPort())) {
+                  rejected.openSocket();
+                }
+              });
+
+      assertTrue(exception.getMessage().contains("Falha ao abrir socket"));
+    } finally {
+      server.stopServer();
+      serverThread.join(1000);
+    }
+  }
+
+  @Test
+  void clientIsNotifiedWhenServerClosesConnection() throws Exception {
+    ChatProtocolSocketHandler handler = new ChatProtocolSocketHandler(new InMemoryChatService());
+    ChatServer server = new ChatServer("127.0.0.1", 0, 1, handler::handle);
+    Thread serverThread = new Thread(server::initServer, "chat-test-server-disconnect");
+    serverThread.setDaemon(true);
+    serverThread.start();
+    assertTrue(server.awaitStarted(3, TimeUnit.SECONDS));
+
+    CountDownLatch disconnected = new CountDownLatch(1);
+    try (ChatClientSocket client =
+        new ChatClientSocket(
+            "127.0.0.1", server.getBoundPort(), event -> {}, disconnected::countDown)) {
+      client.openSocket();
+
+      server.stopServer();
+      serverThread.join(1000);
+
+      assertTrue(disconnected.await(3, TimeUnit.SECONDS));
     }
   }
 }
