@@ -3,6 +3,7 @@ package br.edu.ifal.lsor.chat.socket.client;
 import br.edu.ifal.lsor.chat.protocol.ClientRequest;
 import br.edu.ifal.lsor.chat.protocol.ServerEvent;
 import br.edu.ifal.lsor.chat.protocol.ServerResponse;
+import br.edu.ifal.lsor.chat.socket.ChatObjectInputFilters;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -56,6 +57,7 @@ public class ChatClientSocket implements AutoCloseable {
       this.output = new ObjectOutputStream(socket.getOutputStream());
       this.output.flush();
       this.input = new ObjectInputStream(socket.getInputStream());
+      ChatObjectInputFilters.applyProtocolFilter(input);
       this.running = true;
       this.readerThread = new Thread(this::readLoop, "chat-client-reader");
       this.readerThread.setDaemon(true);

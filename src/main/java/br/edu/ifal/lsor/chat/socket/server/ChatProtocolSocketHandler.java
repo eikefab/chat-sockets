@@ -7,6 +7,7 @@ import br.edu.ifal.lsor.chat.server.ChatSession;
 import br.edu.ifal.lsor.chat.server.InMemoryChatService;
 import br.edu.ifal.lsor.chat.server.OutboundEvent;
 import br.edu.ifal.lsor.chat.server.ServiceResult;
+import br.edu.ifal.lsor.chat.socket.ChatObjectInputFilters;
 import java.io.EOFException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -44,6 +45,7 @@ public final class ChatProtocolSocketHandler {
       ClientConnection connection = new ClientConnection(output);
 
       try (ObjectInputStream input = new ObjectInputStream(socket.getInputStream())) {
+        ChatObjectInputFilters.applyProtocolFilter(input);
         while (true) {
           Object object = input.readObject();
           if (!(object instanceof ClientRequest request)) {
@@ -54,9 +56,12 @@ public final class ChatProtocolSocketHandler {
           }
 
           String previousUsername = session.username();
-          ServiceResult result = service.handle(session, request);
-          if (session.isAuthenticated()) {
-            connections.put(session.username(), connection);
+          ServiceResult result;
+          synchronized (service) {
+            result = service.handle(session, request);
+            if (session.isAuthenticated()) {
+              connections.put(session.username(), connection);
+            }
           }
 
           connection.send(result.response());
@@ -96,6 +101,9 @@ public final class ChatProtocolSocketHandler {
         } catch (RuntimeException exception) {
           connections.remove(username, connection);
           LOGGER.warn("Falha ao enviar evento para {}.", username);
+          // NOTE: only the socket mapping is removed here; the domain session
+          // is not disconnected automatically. A future plan may map username
+          // back to ChatSession and call service.disconnect.
         }
       }
     }

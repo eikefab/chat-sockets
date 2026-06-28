@@ -42,11 +42,31 @@ final class GroupRecord {
     return ownerUsername;
   }
 
-  Set<String> members() {
-    return members;
+  Set<String> memberUsernames() {
+    return Set.copyOf(members);
   }
 
-  List<MessageRecord> history() {
-    return history;
+  int memberCount() {
+    return members.size();
+  }
+
+  boolean hasMember(String username) {
+    return members.contains(username);
+  }
+
+  boolean addMember(String username) {
+    return members.add(username);
+  }
+
+  boolean removeMember(String username) {
+    return members.remove(username);
+  }
+
+  void addMessage(MessageRecord message) {
+    history.add(message);
+  }
+
+  List<MessageRecord> historySnapshot() {
+    return List.copyOf(history);
   }
 }

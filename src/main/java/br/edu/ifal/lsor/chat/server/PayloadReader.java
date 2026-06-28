@@ -43,14 +43,44 @@ final class PayloadReader {
     if (value == null) {
       return defaultValue;
     }
-    if (!(value instanceof Number number)
-        || !value.getClass().getSimpleName().equals("Int" + "eger")) {
+    if (!(value instanceof Integer limit)) {
       throw new InvalidPayloadException("Informe " + key + " válido.");
     }
-    int limit = number.intValue();
     if (limit < 1) {
       throw new InvalidPayloadException("Informe " + key + " válido.");
     }
     return Math.min(limit, maxValue);
+  }
+
+  ActionPayloads.LoginPayload login() throws InvalidPayloadException {
+    return new ActionPayloads.LoginPayload(
+        requiredString("username"), requiredString("displayName"));
+  }
+
+  ActionPayloads.GroupCodePayload groupCode() throws InvalidPayloadException {
+    return new ActionPayloads.GroupCodePayload(requiredString("groupCode"));
+  }
+
+  ActionPayloads.GroupDisplayPayload groupDisplay() throws InvalidPayloadException {
+    return new ActionPayloads.GroupDisplayPayload(
+        requiredString("groupCode"), requiredString("displayName"));
+  }
+
+  ActionPayloads.SendDirectPayload sendDirect() throws InvalidPayloadException {
+    return new ActionPayloads.SendDirectPayload(
+        requiredString("targetUsername"), requiredString("text"));
+  }
+
+  ActionPayloads.SendGroupPayload sendGroup() throws InvalidPayloadException {
+    return new ActionPayloads.SendGroupPayload(requiredString("groupCode"), requiredString("text"));
+  }
+
+  ActionPayloads.HistoryPayload history(int maxLimit) throws InvalidPayloadException {
+    return new ActionPayloads.HistoryPayload(
+        requiredString("scope"), requiredString("target"), optionalLimit("limit", 50, maxLimit));
+  }
+
+  ActionPayloads.ListGroupsPayload listGroups() throws InvalidPayloadException {
+    return new ActionPayloads.ListGroupsPayload(optionalBoolean("onlyMine", false));
   }
 }

@@ -75,7 +75,7 @@ final class ChatState {
 
   GroupRecord createGroup(String groupCode, String displayName, String ownerUsername) {
     GroupRecord group = new GroupRecord(UUID.randomUUID(), groupCode, displayName, ownerUsername);
-    group.members().add(ownerUsername);
+    group.addMember(ownerUsername);
     groups.put(groupCode, group);
     return group;
   }

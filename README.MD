@@ -10,8 +10,8 @@ Projeto desenvolvido para a disciplina de Redes no Instituto Federal de Alagoas 
 
 ## Arquitetura Básica do Projeto
 O projeto utiliza uma arquitetura **Cliente-Servidor** centralizada.
-* **Servidor (`ChatServerMain`):** Atua como o nó central. Ele aguarda conexões em uma porta específica (8080) e delega o atendimento de cada cliente para uma nova Thread (gerenciada por um `ExecutorService`). 
-* **Cliente (`ChatClientSocket`):** Conecta-se ao IP e Porta do servidor para enviar e receber dados.
+* **Servidor:** Atua como o nó central. Ele aguarda conexões em uma porta específica (padrão 8080) e delega o atendimento de cada cliente para uma nova Thread (gerenciada por um `ExecutorService`).
+* **Cliente:** Conecta-se ao IP e Porta do servidor para enviar e receber dados.
 
 ## Protocolo de Comunicação e Fluxo de Conexão
 A troca de mensagens entre o cliente e o servidor ocorre por stream de objetos Java usando `ObjectInputStream` e `ObjectOutputStream`. O contrato completo está em [`docs/protocolo.md`](docs/protocolo.md). O fluxo de conexão obedece a seguinte ordem:
@@ -24,8 +24,12 @@ A troca de mensagens entre o cliente e o servidor ocorre por stream de objetos J
 
 ## Como Executar
 1. Certifique-se de ter o Java 17+ instalado.
-2. Inicie o servidor executando a classe `ChatServerMain.java`.
-3. Inicie um ou mais clientes instanciando a classe `ChatClientSocket.java` com o IP do servidor (ou `127.0.0.1` para testes locais) e a porta `8080`.
+2. Compile o jar: `./gradlew jar`
+3. Inicie o servidor: `java -jar build/libs/chat-sockets-1.0-SNAPSHOT.jar --server --host 0.0.0.0 --port 8080 --max-clients 50`
+4. Inicie o cliente: `java -jar build/libs/chat-sockets-1.0-SNAPSHOT.jar --client --host 127.0.0.1 --port 8080`
+5. Use `--help` para ver todas as opções.
+
+As classes `ChatServerMain` e `ChatClientMain` são entrypoints legados/de teste e não representam o caminho primário de execução.
 
 ## Verificação
 ```text

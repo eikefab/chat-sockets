@@ -8,6 +8,11 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * Entrypoint legado/de teste. Prefira {@link br.edu.ifal.lsor.chat.ChatApplicationMain} com {@code
+ * --client}.
+ */
+@Deprecated(forRemoval = false)
 public class ChatClientMain {
 
   private static final Logger LOGGER = LogManager.getLogger(ChatClientMain.class);

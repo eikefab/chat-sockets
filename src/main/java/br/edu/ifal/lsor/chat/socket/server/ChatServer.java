@@ -32,8 +32,10 @@ public class ChatServer {
   private ServerSocket serverSocket;
   private volatile boolean isRunning;
 
+  static final int DEFAULT_MAX_CLIENTS = 50;
+
   public ChatServer(int port, Consumer<Socket> handler) {
-    this("0.0.0.0", port, Integer.MAX_VALUE, handler, defaultPool());
+    this("0.0.0.0", port, DEFAULT_MAX_CLIENTS, handler, defaultPool());
   }
 
   public ChatServer(String host, int port, int maxClients, Consumer<Socket> handler) {
@@ -41,7 +43,7 @@ public class ChatServer {
   }
 
   public ChatServer(int port, Consumer<Socket> handler, ExecutorService pool) {
-    this("0.0.0.0", port, Integer.MAX_VALUE, handler, pool);
+    this("0.0.0.0", port, DEFAULT_MAX_CLIENTS, handler, pool);
   }
 
   public ChatServer(
@@ -150,5 +152,9 @@ public class ChatServer {
 
   public boolean awaitStarted(long timeout, TimeUnit unit) throws InterruptedException {
     return started.await(timeout, unit);
+  }
+
+  int maxClients() {
+    return maxClients;
   }
 }
