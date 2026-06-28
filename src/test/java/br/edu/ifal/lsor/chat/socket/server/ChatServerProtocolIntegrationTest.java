@@ -330,15 +330,6 @@ class ChatServerProtocolIntegrationTest {
   }
 
   @Test
-  void legacyConstructorWithPoolHasBoundedMaxClients() {
-    ChatProtocolSocketHandler handler = new ChatProtocolSocketHandler(new InMemoryChatService());
-    ChatServer server =
-        new ChatServer(0, handler::handle, java.util.concurrent.Executors.newFixedThreadPool(4));
-    assertTrue(server.maxClients() > 0);
-    assertTrue(server.maxClients() < Integer.MAX_VALUE);
-  }
-
-  @Test
   void directMessageReachesJustLoggedInUser() throws Exception {
     TestServerFixture fixture = startTestServer(10);
 

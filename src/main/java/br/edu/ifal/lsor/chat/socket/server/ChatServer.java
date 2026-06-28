@@ -42,10 +42,6 @@ public class ChatServer {
     this(host, port, maxClients, handler, Executors.newFixedThreadPool(maxClients));
   }
 
-  public ChatServer(int port, Consumer<Socket> handler, ExecutorService pool) {
-    this("0.0.0.0", port, DEFAULT_MAX_CLIENTS, handler, pool);
-  }
-
   public ChatServer(
       String host, int port, int maxClients, Consumer<Socket> handler, ExecutorService pool) {
     if (maxClients <= 0) {

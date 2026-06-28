@@ -31,4 +31,4 @@ Java 17 Gradle TCP chat application using Java object streams (`ObjectInputStrea
 - Keep state in memory unless a plan explicitly introduces persistence.
 - Add or keep tests for socket-boundary behavior before any refactor touching transport.
 - Run `./gradlew spotlessCheck` before committing.
-- The entrypoint is `ChatApplicationMain` with `--server` or `--client` flags. Legacy `ChatServerMain` and `ChatClientMain` are deprecated test helpers.
+- The entrypoint is `ChatApplicationMain` with `--server` or `--client` flags.

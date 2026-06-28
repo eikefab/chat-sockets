@@ -29,7 +29,7 @@ A troca de mensagens entre o cliente e o servidor ocorre por stream de objetos J
 4. Inicie o cliente: `java -jar build/libs/chat-sockets-1.0-SNAPSHOT.jar --client --host 127.0.0.1 --port 8080`
 5. Use `--help` para ver todas as opções.
 
-As classes `ChatServerMain` e `ChatClientMain` são entrypoints legados/de teste e não representam o caminho primário de execução.
+
 
 ## Verificação
 ```text
