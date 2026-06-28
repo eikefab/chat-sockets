@@ -1,23 +1,21 @@
 package br.edu.ifal.lsor.chat;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
 
-import com.google.gson.Gson;
+public class ChatMessage implements Serializable {
 
-public class ChatMessage {
+  private static final long serialVersionUID = 1L;
 
   private final UUID id;
   private final String message;
-  private final String createdAt; // Simplificado para String para facilitar o tráfego JSON
-
-  // Instância do Gson pronta para uso
-  private static final Gson gson = new Gson();
+  private final Instant createdAt;
 
   public ChatMessage(UUID id, String message, Instant createdAt) {
     this.id = id;
     this.message = message;
-    this.createdAt = createdAt.toString(); // Salva no formato padrão ISO-8601
+    this.createdAt = createdAt;
   }
 
   public ChatMessage(String message, Instant createdAt) {
@@ -36,17 +34,7 @@ public class ChatMessage {
     return message;
   }
 
-  public String getCreatedAt() {
+  public Instant getCreatedAt() {
     return createdAt;
-  }
-
-  // Task 18: Método para transformar o objeto em texto JSON para enviar pela rede
-  public String toJson() {
-    return gson.toJson(this);
-  }
-
-  // Task 18: Método para transformar o texto JSON recebido da rede de volta em objeto
-  public static ChatMessage fromJson(String json) {
-    return gson.fromJson(json, ChatMessage.class);
   }
 }

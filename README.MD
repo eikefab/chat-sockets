@@ -14,12 +14,12 @@ O projeto utiliza uma arquitetura **Cliente-Servidor** centralizada.
 * **Cliente (`ChatClientSocket`):** Conecta-se ao IP e Porta do servidor para enviar e receber dados.
 
 ## Protocolo de Comunicação e Fluxo de Conexão
-A troca de mensagens entre o cliente e o servidor ocorre no formato **JSON**, utilizando a biblioteca Gson para serialização. O fluxo de conexão obedece a seguinte ordem:
+A troca de mensagens entre o cliente e o servidor ocorre por stream de objetos Java usando `ObjectInputStream` e `ObjectOutputStream`. O fluxo de conexão obedece a seguinte ordem:
 
 1. **Handshake Inicial:** O cliente aponta para o IP/Porta do servidor e abre o Socket.
-2. **Conexão Estabelecida:** O servidor aceita o Socket, extrai o IP de origem e inicia um loop de escuta contínua (`BufferedReader`).
-3. **Tráfego de Dados:** O cliente envia uma string JSON contendo os dados da classe `ChatMessage` (id, message, createdAt).
-4. **Confirmação (Bidirecional):** Ao ler e desserializar o JSON, o servidor processa a mensagem e envia imediatamente uma string de texto de volta para o cliente como confirmação.
+2. **Conexão Estabelecida:** O servidor aceita o Socket, extrai o IP de origem e inicia um loop de escuta contínua.
+3. **Tráfego de Dados:** O cliente envia objetos `ChatMessage` contendo id, message e createdAt.
+4. **Confirmação (Bidirecional):** Ao ler a mensagem, o servidor processa o objeto e envia imediatamente uma string de texto de volta para o cliente como confirmação.
 5. **Desconexão Segura:** O cliente pode enviar o comando `/sair`. O servidor reconhece o comando, quebra o loop de escuta, fecha os buffers e encerra o socket de forma limpa, liberando a porta.
 
 ## Como Executar
