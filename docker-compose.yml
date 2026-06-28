@@ -1,0 +1,20 @@
+services:
+  chat-server:
+    build: .
+    environment:
+      APP_MODE: server
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  chat-client:
+    build: .
+    environment:
+      APP_MODE: client
+      APP_HOST: chat-server
+    stdin_open: true
+    tty: true
+    depends_on:
+      - chat-server
+    profiles:
+      - client
