@@ -16,6 +16,13 @@ final class CommandHandler {
   private static final DateTimeFormatter TIME_FORMATTER =
       DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
 
+  private static final Map<String, String> ALIASES =
+      Map.of(
+          "/listar", "/list",
+          "/responder", "/reply",
+          "/?", "/help",
+          "/ajuda", "/help");
+
   private final ChatClientSocket client;
   private final String username;
   private final GroupCache groupCache;
@@ -42,13 +49,15 @@ final class CommandHandler {
   }
 
   void handle(String command, String args) throws Exception {
-    switch (command) {
+    String canonical = ALIASES.getOrDefault(command, command);
+    switch (canonical) {
       case "/sair" -> cmdSair();
       case "/msg" -> cmdMsg(args);
       case "/chat" -> cmdChat(args);
-      case "/list", "/listar" -> cmdList();
-      case "/reply", "/responder" -> cmdReply(args);
-      default -> printLine("Comando desconhecido: " + command);
+      case "/list" -> cmdList();
+      case "/reply" -> cmdReply(args);
+      case "/help" -> cmdHelp();
+      default -> printLine("Comando desconhecido: " + command + ". Use /help para ver opções.");
     }
   }
 
@@ -64,6 +73,16 @@ final class CommandHandler {
     }
     printLine("Desconectado.");
     System.exit(0);
+  }
+
+  private void cmdHelp() {
+    printLine("=== Comandos Disponíveis ===");
+    printLine("  /help, /?, /ajuda               — Mostra esta ajuda");
+    printLine("  /list, /listar                  — Lista contatos e grupos");
+    printLine("  /msg <destino> <mensagem>       — Envia mensagem (direta ou grupo)");
+    printLine("  /chat <username|groupCode>      — Exibe histórico da conversa");
+    printLine("  /reply, /responder <mensagem>   — Responde à última mensagem recebida");
+    printLine("  /sair                           — Sai do chat");
   }
 
   private void cmdMsg(String args) throws Exception {
