@@ -8,8 +8,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ChatServer {
+
+  private static final Logger LOGGER = LogManager.getLogger(ChatServer.class);
 
   private final int port;
   private final ExecutorService pool;
@@ -37,7 +41,7 @@ public class ChatServer {
     try {
       this.serverSocket = new ServerSocket(port);
       started.countDown();
-      System.out.println("[LOG] Servidor iniciado na porta " + port);
+      LOGGER.info("[LOG] Servidor iniciado na porta {}", port);
 
       while (isRunning) {
         final Socket socket = serverSocket.accept();
@@ -46,7 +50,7 @@ public class ChatServer {
     } catch (Exception exception) {
       started.countDown();
       if (isRunning) {
-        System.err.println("[ERRO] Falha no servidor: " + exception.getMessage());
+        LOGGER.error("[ERRO] Falha no servidor: {}", exception.getMessage());
       }
     }
   }
@@ -58,9 +62,9 @@ public class ChatServer {
         serverSocket.close();
       }
       pool.shutdown();
-      System.out.println("[LOG] Servidor encerrado com segurança.");
+      LOGGER.info("[LOG] Servidor encerrado com segurança.");
     } catch (Exception e) {
-      System.err.println("[ERRO] Falha ao encerrar o servidor: " + e.getMessage());
+      LOGGER.error("[ERRO] Falha ao encerrar o servidor: {}", e.getMessage());
     }
   }
 

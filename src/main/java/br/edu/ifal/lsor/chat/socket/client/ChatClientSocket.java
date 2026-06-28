@@ -14,8 +14,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ChatClientSocket implements AutoCloseable {
+
+  private static final Logger LOGGER = LogManager.getLogger(ChatClientSocket.class);
 
   private final String host;
   private final int port;
@@ -50,12 +54,12 @@ public class ChatClientSocket implements AutoCloseable {
       this.readerThread.setDaemon(true);
       this.readerThread.start();
 
-      System.out.println("Conectado com sucesso ao servidor " + host + ":" + port);
+      LOGGER.info("Conectado com sucesso ao servidor {}:{}", host, port);
 
     } catch (Exception exception) {
-      System.err.println("Erro ao conectar no servidor " + host + ":" + port);
-      System.err.println("Detalhe do erro: " + exception.getMessage());
-      System.err.println("Verifique se o servidor está rodando e se o IP/Porta estão corretos.");
+      LOGGER.error("Erro ao conectar no servidor {}:{}", host, port);
+      LOGGER.error("Detalhe do erro: {}", exception.getMessage());
+      LOGGER.error("Verifique se o servidor está rodando e se o IP/Porta estão corretos.");
       throw new IllegalStateException("Falha ao abrir socket.", exception);
     }
   }
@@ -126,7 +130,7 @@ public class ChatClientSocket implements AutoCloseable {
     running = false;
     if (this.socket != null && !this.socket.isClosed()) {
       this.socket.close();
-      System.out.println("Conexão encerrada.");
+      LOGGER.info("Conexão encerrada.");
     }
     if (readerThread != null) {
       readerThread.join(500);

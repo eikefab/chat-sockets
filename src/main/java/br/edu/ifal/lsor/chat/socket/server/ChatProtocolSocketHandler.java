@@ -14,8 +14,12 @@ import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public final class ChatProtocolSocketHandler {
+
+  private static final Logger LOGGER = LogManager.getLogger(ChatProtocolSocketHandler.class);
 
   private final InMemoryChatService service;
   private final ConcurrentMap<String, ClientConnection> connections;
@@ -32,7 +36,7 @@ public final class ChatProtocolSocketHandler {
 
   public void handle(Socket socket) {
     String clientIp = socket.getInetAddress().getHostAddress();
-    System.out.println("[LOG] Novo cliente conectado: " + clientIp);
+    LOGGER.info("[LOG] Novo cliente conectado: {}", clientIp);
     ChatSession session = new ChatSession();
 
     try (ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream())) {
@@ -67,9 +71,9 @@ public final class ChatProtocolSocketHandler {
         }
       }
     } catch (EOFException exception) {
-      System.err.println("[AVISO] Conexão encerrada pelo cliente " + clientIp + ".");
+      LOGGER.warn("[AVISO] Conexão encerrada pelo cliente {}.", clientIp);
     } catch (Exception exception) {
-      System.err.println("[AVISO] Conexão perdida com o cliente " + clientIp + ".");
+      LOGGER.warn("[AVISO] Conexão perdida com o cliente {}.", clientIp);
     } finally {
       String username = session.username();
       if (username != null) {
@@ -91,7 +95,7 @@ public final class ChatProtocolSocketHandler {
           connection.send(event.event());
         } catch (RuntimeException exception) {
           connections.remove(username, connection);
-          System.err.println("[AVISO] Falha ao enviar evento para " + username + ".");
+          LOGGER.warn("[AVISO] Falha ao enviar evento para {}.", username);
         }
       }
     }
@@ -101,10 +105,10 @@ public final class ChatProtocolSocketHandler {
     try {
       if (socket != null && !socket.isClosed()) {
         socket.close();
-        System.out.println("[LOG] Cliente desconectado e socket fechado: " + clientIp);
+        LOGGER.info("[LOG] Cliente desconectado e socket fechado: {}", clientIp);
       }
     } catch (Exception exception) {
-      System.err.println("[ERRO] Falha ao fechar socket do cliente.");
+      LOGGER.error("[ERRO] Falha ao fechar socket do cliente.");
     }
   }
 }
