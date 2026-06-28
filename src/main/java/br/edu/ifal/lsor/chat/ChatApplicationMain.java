@@ -2,10 +2,9 @@ package br.edu.ifal.lsor.chat;
 
 import br.edu.ifal.lsor.chat.ChatCommandLine.CliConfig;
 import br.edu.ifal.lsor.chat.server.InMemoryChatService;
-import br.edu.ifal.lsor.chat.socket.client.ChatClientSocket;
 import br.edu.ifal.lsor.chat.socket.server.ChatProtocolSocketHandler;
 import br.edu.ifal.lsor.chat.socket.server.ChatServer;
-import java.util.concurrent.CountDownLatch;
+import br.edu.ifal.lsor.chat.terminal.ChatTerminalClient;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,31 +56,9 @@ public final class ChatApplicationMain {
     server.initServer();
   }
 
-  private static void runClient(CliConfig config) throws Exception {
-    CountDownLatch shutdown = new CountDownLatch(1);
-    try (ChatClientSocket client =
-        new ChatClientSocket(
-            config.host(),
-            config.port(),
-            event -> LOGGER.info("Evento: {}", event),
-            shutdown::countDown)) {
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  () -> {
-                    try {
-                      client.close();
-                    } catch (Exception exception) {
-                      LOGGER.warn("Falha ao fechar cliente: {}", exception.getMessage());
-                    } finally {
-                      shutdown.countDown();
-                    }
-                  },
-                  "chat-client-shutdown"));
-      client.openSocket();
-      LOGGER.info("Cliente conectado. Aguardando servidor ou Ctrl+C.");
-      shutdown.await();
-    }
+  private static void runClient(CliConfig config) {
+    ChatTerminalClient terminal = new ChatTerminalClient(config.host(), config.port());
+    terminal.start();
   }
 
   private static String version() {
