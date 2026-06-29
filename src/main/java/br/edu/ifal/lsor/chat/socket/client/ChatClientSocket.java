@@ -4,6 +4,7 @@ import br.edu.ifal.lsor.chat.protocol.ClientRequest;
 import br.edu.ifal.lsor.chat.protocol.ServerEvent;
 import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 import br.edu.ifal.lsor.chat.socket.ChatObjectInputFilters;
+import br.edu.ifal.lsor.chat.socket.ChatObjectStreams;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -82,8 +83,7 @@ public class ChatClientSocket implements AutoCloseable {
     pendingResponses.put(request.requestId(), response);
     try {
       synchronized (output) {
-        output.writeObject(request);
-        output.flush();
+        ChatObjectStreams.writeAndReset(output, request);
       }
       return response;
     } catch (Exception exception) {
@@ -146,12 +146,16 @@ public class ChatClientSocket implements AutoCloseable {
   @Override
   public void close() throws Exception {
     running = false;
-    if (this.socket != null && !this.socket.isClosed()) {
-      this.socket.close();
-      LOGGER.info("Conexão encerrada.");
-    }
-    if (readerThread != null) {
-      readerThread.join(500);
+    try {
+      if (this.socket != null && !this.socket.isClosed()) {
+        this.socket.close();
+        LOGGER.info("Conexão encerrada.");
+      }
+    } finally {
+      completePending(new IllegalStateException("Socket fechado."));
+      if (readerThread != null) {
+        readerThread.join(500);
+      }
     }
   }
 }

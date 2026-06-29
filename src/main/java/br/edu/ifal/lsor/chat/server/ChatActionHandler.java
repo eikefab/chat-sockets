@@ -13,15 +13,13 @@ final class ChatActionHandler {
 
   private final ChatState state = new ChatState();
   private final EventFactory events = new EventFactory(state);
-  private final GroupActions groupActions;
   private final SessionActions sessionActions;
-  private final MessageActions messageActions;
   private final Map<String, ChatAction> dispatch = new HashMap<>();
 
   ChatActionHandler() {
     this.sessionActions = new SessionActions(state, events);
-    this.groupActions = new GroupActions(state, events);
-    this.messageActions = new MessageActions(state, events, groupActions);
+    GroupActions groupActions = new GroupActions(state, events);
+    MessageActions messageActions = new MessageActions(state, events);
     register(Actions.LOGIN, sessionActions.forAction(Actions.LOGIN));
     register(Actions.LOGOUT, sessionActions.forAction(Actions.LOGOUT));
     register(Actions.HEARTBEAT, sessionActions.forAction(Actions.HEARTBEAT));

@@ -15,7 +15,7 @@ final class PayloadReader {
     return new PayloadReader(request);
   }
 
-  String requiredString(String key) throws InvalidPayloadException {
+  String requiredString(String key, int maxLength) throws InvalidPayloadException {
     Serializable value = request.payload().get(key);
     if (!(value instanceof String text)) {
       throw new InvalidPayloadException("Informe " + key + ".");
@@ -23,6 +23,10 @@ final class PayloadReader {
     String trimmed = text.trim();
     if (trimmed.isEmpty()) {
       throw new InvalidPayloadException("Informe " + key + ".");
+    }
+    if (trimmed.length() > maxLength) {
+      throw new InvalidPayloadException(
+          "Informe " + key + " com ate " + maxLength + " caracteres.");
     }
     return trimmed;
   }
@@ -54,30 +58,42 @@ final class PayloadReader {
 
   ActionPayloads.LoginPayload login() throws InvalidPayloadException {
     return new ActionPayloads.LoginPayload(
-        requiredString("username"), requiredString("displayName"));
+        requiredString("username", PayloadLimits.MAX_USERNAME_LENGTH),
+        requiredString("displayName", PayloadLimits.MAX_DISPLAY_NAME_LENGTH));
   }
 
   ActionPayloads.GroupCodePayload groupCode() throws InvalidPayloadException {
-    return new ActionPayloads.GroupCodePayload(requiredString("groupCode"));
+    return new ActionPayloads.GroupCodePayload(
+        requiredString("groupCode", PayloadLimits.MAX_GROUP_CODE_LENGTH));
   }
 
   ActionPayloads.GroupDisplayPayload groupDisplay() throws InvalidPayloadException {
     return new ActionPayloads.GroupDisplayPayload(
-        requiredString("groupCode"), requiredString("displayName"));
+        requiredString("groupCode", PayloadLimits.MAX_GROUP_CODE_LENGTH),
+        requiredString("displayName", PayloadLimits.MAX_DISPLAY_NAME_LENGTH));
   }
 
   ActionPayloads.SendDirectPayload sendDirect() throws InvalidPayloadException {
     return new ActionPayloads.SendDirectPayload(
-        requiredString("targetUsername"), requiredString("text"));
+        requiredString("targetUsername", PayloadLimits.MAX_USERNAME_LENGTH),
+        requiredString("text", PayloadLimits.MAX_MESSAGE_TEXT_LENGTH));
   }
 
   ActionPayloads.SendGroupPayload sendGroup() throws InvalidPayloadException {
-    return new ActionPayloads.SendGroupPayload(requiredString("groupCode"), requiredString("text"));
+    return new ActionPayloads.SendGroupPayload(
+        requiredString("groupCode", PayloadLimits.MAX_GROUP_CODE_LENGTH),
+        requiredString("text", PayloadLimits.MAX_MESSAGE_TEXT_LENGTH));
   }
 
   ActionPayloads.HistoryPayload history(int maxLimit) throws InvalidPayloadException {
+    MessageScope scope = MessageScope.parse(requiredString("scope", 16));
+    int targetLimit =
+        switch (scope) {
+          case DIRECT -> PayloadLimits.MAX_USERNAME_LENGTH;
+          case GROUP -> PayloadLimits.MAX_GROUP_CODE_LENGTH;
+        };
     return new ActionPayloads.HistoryPayload(
-        requiredString("scope"), requiredString("target"), optionalLimit("limit", 50, maxLimit));
+        scope, requiredString("target", targetLimit), optionalLimit("limit", 50, maxLimit));
   }
 
   ActionPayloads.ListGroupsPayload listGroups() throws InvalidPayloadException {

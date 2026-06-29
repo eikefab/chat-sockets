@@ -16,12 +16,10 @@ final class MessageActions {
 
   private final ChatState state;
   private final EventFactory events;
-  private final GroupActions groupActions;
 
-  MessageActions(ChatState state, EventFactory events, GroupActions groupActions) {
+  MessageActions(ChatState state, EventFactory events) {
     this.state = state;
     this.events = events;
-    this.groupActions = groupActions;
   }
 
   ChatAction forAction(String action) {
@@ -76,7 +74,7 @@ final class MessageActions {
     ActionPayloads.SendGroupPayload groupPayload = payload.sendGroup();
     String groupCode = groupPayload.groupCode();
     String text = groupPayload.text();
-    GroupRecord group = groupActions.findGroupOrError(request, groupCode);
+    GroupRecord group = state.requireGroup(groupCode);
     if (!group.hasMember(session.username())) {
       return new ServiceResult(
           ServerResponse.error(
@@ -111,10 +109,10 @@ final class MessageActions {
   ServiceResult getHistory(ChatSession session, ClientRequest request, PayloadReader payload)
       throws InvalidPayloadException, ServiceFailureException {
     ActionPayloads.HistoryPayload history = payload.history(100);
-    MessageScope scope = MessageScope.parse(history.scope());
+    MessageScope scope = history.scope();
     String target = history.target();
     int limit = history.limit();
-    List<MessageRecord> source = historySource(session, request, scope, target);
+    List<MessageRecord> source = historySource(session, scope, target);
     int fromIndex = Math.max(0, source.size() - limit);
     List<Map<String, Serializable>> messages =
         source.subList(fromIndex, source.size()).stream().map(MessageRecord::toPayload).toList();
@@ -126,12 +124,11 @@ final class MessageActions {
             Payloads.historyResult(scope.name(), target, messages)));
   }
 
-  private List<MessageRecord> historySource(
-      ChatSession session, ClientRequest request, MessageScope scope, String target)
-      throws InvalidPayloadException, ServiceFailureException {
+  private List<MessageRecord> historySource(ChatSession session, MessageScope scope, String target)
+      throws ServiceFailureException {
     return switch (scope) {
       case DIRECT -> directHistory(session, target);
-      case GROUP -> groupHistory(session, request, target);
+      case GROUP -> groupHistory(session, target);
     };
   }
 
@@ -143,9 +140,9 @@ final class MessageActions {
     return state.directHistoryBetween(session.username(), target);
   }
 
-  private List<MessageRecord> groupHistory(
-      ChatSession session, ClientRequest request, String target) throws ServiceFailureException {
-    GroupRecord group = groupActions.findGroupOrError(request, target);
+  private List<MessageRecord> groupHistory(ChatSession session, String target)
+      throws ServiceFailureException {
+    GroupRecord group = state.requireGroup(target);
     if (!group.hasMember(session.username())) {
       throw new ServiceFailureException(Codes.NOT_GROUP_MEMBER, "Usuário não participa do grupo.");
     }

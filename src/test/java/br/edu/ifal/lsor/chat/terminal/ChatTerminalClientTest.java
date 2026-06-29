@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -228,6 +229,49 @@ class ChatTerminalClientTest {
       fixture.serverThread.join(1000);
 
       assertTrue(disconnected.await(3, TimeUnit.SECONDS));
+    }
+  }
+
+  @Test
+  void refreshGroupCacheClearsCacheOnEmptyList() {
+    GroupCache groupCache = new GroupCache();
+    groupCache.put("devs", "Desenvolvedores");
+
+    ServerResponse emptyGroupsResponse =
+        ServerResponse.ok(
+            null,
+            Codes.GROUPS_LISTED,
+            "Grupos listados.",
+            Map.of("groups", (Serializable) List.<Map<String, Serializable>>of()));
+
+    FakeChatClientSocket fakeClient = new FakeChatClientSocket(emptyGroupsResponse);
+    CommandHandler handler =
+        new CommandHandler(
+            fakeClient,
+            "alice",
+            groupCache,
+            new TerminalEventPrinter("alice", groupCache, new Object()),
+            new Object());
+
+    handler.refreshGroupCache();
+
+    assertFalse(groupCache.contains("devs"));
+  }
+
+  private static final class FakeChatClientSocket extends ChatClientSocket {
+
+    private final ServerResponse response;
+
+    FakeChatClientSocket(ServerResponse response) {
+      super("127.0.0.1", 0);
+      this.response = response;
+    }
+
+    @Override
+    public CompletableFuture<ServerResponse> send(
+        String action, Map<String, Serializable> payload) {
+      assertEquals(Actions.LIST_GROUPS, action);
+      return CompletableFuture.completedFuture(response);
     }
   }
 }

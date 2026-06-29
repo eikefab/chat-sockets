@@ -20,16 +20,16 @@ public final class ChatProtocolSocketHandler {
 
   private static final Logger LOGGER = LogManager.getLogger(ChatProtocolSocketHandler.class);
 
-  private final InMemoryChatService service;
   private final ConnectionRegistry connections;
+  private final ConnectionLifecycle lifecycle;
 
   public ChatProtocolSocketHandler(InMemoryChatService service) {
     this(service, new ConnectionRegistry());
   }
 
   ChatProtocolSocketHandler(InMemoryChatService service, ConnectionRegistry connections) {
-    this.service = service;
     this.connections = connections;
+    this.lifecycle = new ConnectionLifecycle(service, connections);
   }
 
   public void handle(Socket socket) {
@@ -52,20 +52,12 @@ public final class ChatProtocolSocketHandler {
             continue;
           }
 
-          String previousUsername = session.username();
-          ServiceResult result;
-          synchronized (service) {
-            result = service.handle(session, request);
-            connections.register(session, connection);
-          }
+          ServiceResult result = lifecycle.handle(session, connection, request);
 
           connection.send(result.response());
           dispatch(result.events());
 
           if (result.closeConnection()) {
-            if (previousUsername != null) {
-              connections.remove(previousUsername);
-            }
             break;
           }
         }
@@ -75,11 +67,7 @@ public final class ChatProtocolSocketHandler {
     } catch (Exception exception) {
       LOGGER.warn("Conexao perdida com o cliente {}.", clientIp);
     } finally {
-      String username = session.username();
-      if (username != null) {
-        connections.remove(username);
-      }
-      dispatch(service.disconnect(session));
+      dispatch(lifecycle.disconnect(session));
       closeSocket(socket, clientIp);
     }
   }
@@ -97,7 +85,7 @@ public final class ChatProtocolSocketHandler {
           ChatSession disconnected = connections.remove(username, connection);
           LOGGER.warn("Falha ao enviar evento para {}.", username);
           if (disconnected != null) {
-            dispatch(service.disconnect(disconnected));
+            dispatch(lifecycle.disconnect(disconnected));
           }
         }
       }

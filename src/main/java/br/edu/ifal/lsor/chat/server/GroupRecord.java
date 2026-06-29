@@ -1,6 +1,5 @@
 package br.edu.ifal.lsor.chat.server;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -12,7 +11,7 @@ final class GroupRecord {
   private final String groupCode;
   private final String ownerUsername;
   private final Set<String> members = new LinkedHashSet<>();
-  private final List<MessageRecord> history = new ArrayList<>();
+  private final MessageHistory history = new MessageHistory();
   private String displayName;
 
   GroupRecord(UUID groupId, String groupCode, String displayName, String ownerUsername) {
@@ -67,6 +66,6 @@ final class GroupRecord {
   }
 
   List<MessageRecord> historySnapshot() {
-    return List.copyOf(history);
+    return history.snapshot();
   }
 }

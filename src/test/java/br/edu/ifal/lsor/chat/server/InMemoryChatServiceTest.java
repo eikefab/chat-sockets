@@ -264,6 +264,19 @@ class InMemoryChatServiceTest {
   }
 
   @Test
+  void historyRejectsTargetLongerThanScopeAllows() {
+    ChatSession maria = new ChatSession();
+    login(maria, "maria");
+    String longTarget = "a".repeat(PayloadLimits.MAX_USERNAME_LENGTH + 1);
+
+    ServiceResult result =
+        service.handle(
+            maria, request(Actions.GET_HISTORY, Map.of("scope", "DIRECT", "target", longTarget)));
+
+    assertEquals(Codes.INVALID_PAYLOAD, result.response().code());
+  }
+
+  @Test
   void listGroupsRejectsStringOnlyMine() {
     ChatSession maria = new ChatSession();
     login(maria, "maria");
@@ -282,6 +295,97 @@ class InMemoryChatServiceTest {
     ServiceResult result = service.handle(maria, request(Actions.SEND_GROUP));
 
     assertEquals(Codes.INVALID_PAYLOAD, result.response().code());
+  }
+
+  @Test
+  void loginRejectsUsernameLongerThanMaxLength() {
+    ChatSession session = new ChatSession();
+    String longUsername = "a".repeat(PayloadLimits.MAX_USERNAME_LENGTH + 1);
+
+    ServiceResult result =
+        service.handle(
+            session,
+            request(Actions.LOGIN, Map.of("username", longUsername, "displayName", "Valid")));
+
+    assertEquals(Codes.INVALID_PAYLOAD, result.response().code());
+  }
+
+  @Test
+  void sendDirectRejectsTextLongerThanMaxLength() {
+    ChatSession maria = new ChatSession();
+    ChatSession joao = new ChatSession();
+    login(maria, "maria");
+    login(joao, "joao");
+    String longText = "a".repeat(PayloadLimits.MAX_MESSAGE_TEXT_LENGTH + 1);
+
+    ServiceResult result =
+        service.handle(
+            maria,
+            request(Actions.SEND_DIRECT, Map.of("targetUsername", "joao", "text", longText)));
+
+    assertEquals(Codes.INVALID_PAYLOAD, result.response().code());
+  }
+
+  @Test
+  void directHistoryRetainsOnlyMaxHistoryMessages() {
+    ChatSession maria = new ChatSession();
+    ChatSession joao = new ChatSession();
+    login(maria, "maria");
+    login(joao, "joao");
+
+    for (int index = 0; index < PayloadLimits.MAX_HISTORY_MESSAGES + 1; index++) {
+      service.handle(
+          maria,
+          request(Actions.SEND_DIRECT, Map.of("targetUsername", "joao", "text", "msg " + index)));
+    }
+
+    ServerResponse response =
+        service
+            .handle(
+                maria,
+                request(
+                    Actions.GET_HISTORY,
+                    Map.of(
+                        "scope", "DIRECT",
+                        "target", "joao",
+                        "limit", 100)))
+            .response();
+
+    List<?> messages = (List<?>) response.payload().get("messages");
+    assertEquals(100, messages.size());
+  }
+
+  @Test
+  void groupHistoryRetainsOnlyMaxHistoryMessages() {
+    ChatSession owner = new ChatSession();
+    login(owner, "owner");
+    service.handle(
+        owner,
+        request(
+            Actions.CREATE_GROUP,
+            Map.of(
+                "groupCode", "devs",
+                "displayName", "Devs")));
+
+    for (int index = 0; index < PayloadLimits.MAX_HISTORY_MESSAGES + 1; index++) {
+      service.handle(
+          owner, request(Actions.SEND_GROUP, Map.of("groupCode", "devs", "text", "msg " + index)));
+    }
+
+    ServerResponse response =
+        service
+            .handle(
+                owner,
+                request(
+                    Actions.GET_HISTORY,
+                    Map.of(
+                        "scope", "GROUP",
+                        "target", "devs",
+                        "limit", 100)))
+            .response();
+
+    List<?> messages = (List<?>) response.payload().get("messages");
+    assertEquals(100, messages.size());
   }
 
   private ServiceResult login(ChatSession session, String username) {

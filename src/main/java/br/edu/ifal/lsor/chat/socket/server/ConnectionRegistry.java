@@ -9,9 +9,7 @@ final class ConnectionRegistry {
   private final ConcurrentMap<String, RegisteredConnection> connections = new ConcurrentHashMap<>();
 
   void register(ChatSession session, ClientConnection connection) {
-    if (session.isAuthenticated()) {
-      connections.put(session.username(), new RegisteredConnection(connection, session));
-    }
+    connections.put(session.username(), new RegisteredConnection(connection, session));
   }
 
   ClientConnection connection(String username) {

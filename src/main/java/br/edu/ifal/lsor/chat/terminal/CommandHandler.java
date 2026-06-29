@@ -216,8 +216,8 @@ final class CommandHandler {
       if (groupsResponse.isOk()) {
         List<Map<String, Serializable>> groups =
             ChatTerminalClient.listFromPayload(groupsResponse.payload(), "groups");
+        groupCache.populate(groups);
         if (!groups.isEmpty()) {
-          groupCache.populate(groups);
           for (Map<String, Serializable> group : groups) {
             String gc = (String) group.get("groupCode");
             String gd = (String) group.get("displayName");
@@ -273,9 +273,7 @@ final class CommandHandler {
       if (response.isOk()) {
         List<Map<String, Serializable>> groups =
             ChatTerminalClient.listFromPayload(response.payload(), "groups");
-        if (!groups.isEmpty()) {
-          groupCache.populate(groups);
-        }
+        groupCache.populate(groups);
       }
     } catch (Exception exception) {
       printLine("Aviso: não foi possível carregar a lista de grupos.");

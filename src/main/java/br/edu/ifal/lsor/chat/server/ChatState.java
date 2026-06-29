@@ -1,6 +1,6 @@
 package br.edu.ifal.lsor.chat.server;
 
-import java.util.ArrayList;
+import br.edu.ifal.lsor.chat.protocol.Codes;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -14,7 +14,7 @@ final class ChatState {
   private final Map<String, UserRecord> users = new HashMap<>();
   private final Map<String, ChatSession> onlineSessions = new HashMap<>();
   private final Map<String, GroupRecord> groups = new HashMap<>();
-  private final List<MessageRecord> directHistory = new ArrayList<>();
+  private final MessageHistory directHistory = new MessageHistory();
 
   boolean isOnline(String username) {
     return onlineSessions.containsKey(username);
@@ -73,6 +73,14 @@ final class ChatState {
     return groups.get(groupCode);
   }
 
+  GroupRecord requireGroup(String groupCode) throws ServiceFailureException {
+    GroupRecord group = findGroup(groupCode);
+    if (group == null) {
+      throw new ServiceFailureException(Codes.GROUP_NOT_FOUND, "Grupo não encontrado.");
+    }
+    return group;
+  }
+
   GroupRecord createGroup(String groupCode, String displayName, String ownerUsername) {
     GroupRecord group = new GroupRecord(UUID.randomUUID(), groupCode, displayName, ownerUsername);
     group.addMember(ownerUsername);
@@ -89,8 +97,6 @@ final class ChatState {
   }
 
   List<MessageRecord> directHistoryBetween(String firstUsername, String secondUsername) {
-    return directHistory.stream()
-        .filter(message -> message.isDirectBetween(firstUsername, secondUsername))
-        .toList();
+    return directHistory.between(firstUsername, secondUsername);
   }
 }

@@ -14,7 +14,7 @@ final class ActionPayloads {
 
   record SendGroupPayload(String groupCode, String text) {}
 
-  record HistoryPayload(String scope, String target, int limit) {}
+  record HistoryPayload(MessageScope scope, String target, int limit) {}
 
   record ListGroupsPayload(boolean onlyMine) {}
 }

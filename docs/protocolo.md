@@ -727,6 +727,24 @@ Payload: `groupCode`, `username`, `displayName`.
 - `GET_HISTORY` retorna no máximo `limit` mensagens.
 - Para grupos, somente membros atuais podem consultar o histórico.
 
+## Limites de payload
+
+Cada implementação deve rejeitar campos de payload que excedam os limites abaixo. Valores são
+medidos após remoção de espaços nas pontas (trim).
+
+| Campo | Limite | Descrição |
+| --- | --- | --- |
+| `username` | 32 caracteres | Nome de usuário. |
+| `displayName` | 80 caracteres | Nome exibido. |
+| `groupCode` | 32 caracteres | Código do grupo. |
+| `text` | 2.000 caracteres | Texto de mensagem. |
+
+Históricos em memória:
+
+- Histórico direto: retém as últimas 1.000 mensagens em memória.
+- Histórico por grupo: retém as últimas 1.000 mensagens em memória.
+- `GET_HISTORY` continua retornando no máximo 100 mensagens por requisição.
+
 ## Compatibilidade com comandos de texto
 
 Comandos como `/sair`, `/grupo criar` ou `/msg maria` pertencem à interface do cliente. O cliente pode oferecer esses comandos ao usuário humano, mas deve traduzi-los para envelopes tipados antes de enviar ao servidor.

@@ -68,7 +68,8 @@ final class GroupActions {
 
   ServiceResult joinGroup(ChatSession session, ClientRequest request, PayloadReader payload)
       throws InvalidPayloadException, ServiceFailureException {
-    GroupRecord group = requiredGroup(request, payload);
+    String groupCode = payload.groupCode().groupCode();
+    GroupRecord group = state.requireGroup(groupCode);
     if (!group.addMember(session.username())) {
       return new ServiceResult(
           ServerResponse.error(
@@ -92,7 +93,8 @@ final class GroupActions {
 
   ServiceResult leaveGroup(ChatSession session, ClientRequest request, PayloadReader payload)
       throws InvalidPayloadException, ServiceFailureException {
-    GroupRecord group = requiredGroup(request, payload);
+    String groupCode = payload.groupCode().groupCode();
+    GroupRecord group = state.requireGroup(groupCode);
     if (!group.hasMember(session.username())) {
       return new ServiceResult(
           ServerResponse.error(
@@ -117,8 +119,9 @@ final class GroupActions {
 
   ServiceResult renameGroup(ChatSession session, ClientRequest request, PayloadReader payload)
       throws InvalidPayloadException, ServiceFailureException {
-    GroupRecord group = requiredGroup(request, payload);
-    String displayName = payload.groupDisplay().displayName();
+    ActionPayloads.GroupDisplayPayload groupDisplay = payload.groupDisplay();
+    GroupRecord group = state.requireGroup(groupDisplay.groupCode());
+    String displayName = groupDisplay.displayName();
     if (!group.ownerUsername().equals(session.username())) {
       return new ServiceResult(
           ServerResponse.error(
@@ -137,7 +140,8 @@ final class GroupActions {
 
   ServiceResult deleteGroup(ChatSession session, ClientRequest request, PayloadReader payload)
       throws InvalidPayloadException, ServiceFailureException {
-    GroupRecord group = requiredGroup(request, payload);
+    String groupCode = payload.groupCode().groupCode();
+    GroupRecord group = state.requireGroup(groupCode);
     if (!group.ownerUsername().equals(session.username())) {
       return new ServiceResult(
           ServerResponse.error(
@@ -157,20 +161,6 @@ final class GroupActions {
                     "groupCode", group.groupCode(),
                     "deletedByUsername", session.username()))),
         false);
-  }
-
-  GroupRecord requiredGroup(ClientRequest request, PayloadReader payload)
-      throws InvalidPayloadException, ServiceFailureException {
-    return findGroupOrError(request, payload.groupCode().groupCode());
-  }
-
-  GroupRecord findGroupOrError(ClientRequest request, String groupCode)
-      throws ServiceFailureException {
-    GroupRecord group = state.findGroup(groupCode);
-    if (group == null) {
-      throw new ServiceFailureException(Codes.GROUP_NOT_FOUND, "Grupo não encontrado.");
-    }
-    return group;
   }
 
   private ServiceResult memberEventResult(

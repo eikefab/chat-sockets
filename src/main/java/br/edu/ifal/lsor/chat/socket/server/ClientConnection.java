@@ -1,5 +1,6 @@
 package br.edu.ifal.lsor.chat.socket.server;
 
+import br.edu.ifal.lsor.chat.socket.ChatObjectStreams;
 import java.io.ObjectOutputStream;
 
 final class ClientConnection {
@@ -12,8 +13,7 @@ final class ClientConnection {
 
   synchronized void send(Object object) {
     try {
-      output.writeObject(object);
-      output.flush();
+      ChatObjectStreams.writeAndReset(output, object);
     } catch (Exception exception) {
       throw new IllegalStateException("Falha ao enviar objeto ao cliente.", exception);
     }
