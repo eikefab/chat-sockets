@@ -9,25 +9,25 @@ import java.util.UUID;
 record MessageRecord(
     UUID messageId,
     String fromUsername,
-    String toUsername,
-    String groupCode,
+    ConversationTarget target,
     String text,
     Instant createdAt) {
 
   static MessageRecord direct(
       UUID messageId, String fromUsername, String toUsername, String text, Instant createdAt) {
-    return new MessageRecord(messageId, fromUsername, toUsername, null, text, createdAt);
+    return new MessageRecord(
+        messageId, fromUsername, ConversationTarget.direct(toUsername), text, createdAt);
   }
 
   static MessageRecord group(
       UUID messageId, String authorUsername, String groupCode, String text, Instant createdAt) {
-    return new MessageRecord(messageId, authorUsername, null, groupCode, text, createdAt);
+    return new MessageRecord(
+        messageId, authorUsername, ConversationTarget.group(groupCode), text, createdAt);
   }
 
   boolean isDirectBetween(String firstUsername, String secondUsername) {
-    return groupCode == null
-        && ((fromUsername.equals(firstUsername) && toUsername.equals(secondUsername))
-            || (fromUsername.equals(secondUsername) && toUsername.equals(firstUsername)));
+    return target.isDirectBetween(firstUsername, secondUsername)
+        && (fromUsername.equals(firstUsername) || fromUsername.equals(secondUsername));
   }
 
   Map<String, Serializable> toPayload() {
@@ -36,11 +36,10 @@ record MessageRecord(
     payload.put("fromUsername", fromUsername);
     payload.put("text", text);
     payload.put("createdAt", createdAt);
-    if (toUsername != null) {
-      payload.put("toUsername", toUsername);
-    }
-    if (groupCode != null) {
-      payload.put("groupCode", groupCode);
+    if (target.scope() == MessageScope.DIRECT) {
+      payload.put("toUsername", target.value());
+    } else {
+      payload.put("groupCode", target.value());
     }
     return Map.copyOf(payload);
   }

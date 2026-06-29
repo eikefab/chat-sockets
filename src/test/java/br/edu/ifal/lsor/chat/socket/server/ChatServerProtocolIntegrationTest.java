@@ -112,6 +112,59 @@ class ChatServerProtocolIntegrationTest {
   }
 
   @Test
+  void eventListenerFailureDoesNotStopClientReader() throws Exception {
+    TestServerFixture fixture = startTestServer(10);
+
+    CountDownLatch eventSeen = new CountDownLatch(1);
+    try (ChatClientSocket alice = new ChatClientSocket("127.0.0.1", fixture.server.getBoundPort());
+        ChatClientSocket bob =
+            new ChatClientSocket(
+                "127.0.0.1",
+                fixture.server.getBoundPort(),
+                event -> {
+                  eventSeen.countDown();
+                  throw new IllegalStateException("listener failed");
+                })) {
+      alice.openSocket();
+      bob.openSocket();
+
+      assertEquals(
+          Codes.LOGIN_ACCEPTED,
+          alice
+              .send(
+                  Actions.LOGIN,
+                  Map.<String, Serializable>of(
+                      "username", "alice-listener", "displayName", "Alice"))
+              .get(3, TimeUnit.SECONDS)
+              .code());
+      assertEquals(
+          Codes.LOGIN_ACCEPTED,
+          bob.send(
+                  Actions.LOGIN,
+                  Map.<String, Serializable>of("username", "bob-listener", "displayName", "Bob"))
+              .get(3, TimeUnit.SECONDS)
+              .code());
+
+      assertEquals(
+          Codes.MESSAGE_ACCEPTED,
+          alice
+              .send(
+                  Actions.SEND_DIRECT,
+                  Map.<String, Serializable>of(
+                      "targetUsername", "bob-listener", "text", "still there?"))
+              .get(3, TimeUnit.SECONDS)
+              .code());
+      assertTrue(eventSeen.await(3, TimeUnit.SECONDS));
+
+      ServerResponse heartbeat =
+          bob.send(Actions.HEARTBEAT, Map.<String, Serializable>of()).get(3, TimeUnit.SECONDS);
+      assertEquals(Codes.HEARTBEAT_ACK, heartbeat.code());
+    } finally {
+      stopTestServer(fixture);
+    }
+  }
+
+  @Test
   void serverRejectsConnectionsAboveMaxClients() throws Exception {
     TestServerFixture fixture = startTestServer(1);
 
@@ -270,12 +323,7 @@ class ChatServerProtocolIntegrationTest {
               .get(3, TimeUnit.SECONDS);
       assertEquals(Codes.MESSAGE_ACCEPTED, sendGroup.code());
 
-      drainAll(memberEvents);
-      ServerEvent memberMessage = memberEvents.poll(1, TimeUnit.SECONDS);
-      if (memberMessage != null && !Events.GROUP_MESSAGE.equals(memberMessage.eventType())) {
-        memberEvents.add(memberMessage);
-        memberMessage = memberEvents.poll(1, TimeUnit.SECONDS);
-      }
+      ServerEvent memberMessage = pollEvent(memberEvents, Events.GROUP_MESSAGE);
       assertNotNull(memberMessage);
       assertEquals(Events.GROUP_MESSAGE, memberMessage.eventType());
       assertEquals("devs", memberMessage.payload().get("groupCode"));
@@ -410,5 +458,17 @@ class ChatServerProtocolIntegrationTest {
       event = queue.poll();
     }
     return drained;
+  }
+
+  private static ServerEvent pollEvent(BlockingQueue<ServerEvent> queue, String eventType)
+      throws InterruptedException {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+    while (System.nanoTime() < deadline) {
+      ServerEvent event = queue.poll(100, TimeUnit.MILLISECONDS);
+      if (event != null && eventType.equals(event.eventType())) {
+        return event;
+      }
+    }
+    return null;
   }
 }

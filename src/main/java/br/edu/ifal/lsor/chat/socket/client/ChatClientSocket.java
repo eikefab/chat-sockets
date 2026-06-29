@@ -116,7 +116,7 @@ public class ChatClientSocket implements AutoCloseable {
             pending.complete(response);
           }
         } else if (object instanceof ServerEvent event) {
-          eventListener.accept(event);
+          notifyEvent(event);
         }
       }
     } catch (Exception exception) {
@@ -133,6 +133,14 @@ public class ChatClientSocket implements AutoCloseable {
   private void completePending(Exception exception) {
     pendingResponses.forEach((requestId, response) -> response.completeExceptionally(exception));
     pendingResponses.clear();
+  }
+
+  private void notifyEvent(ServerEvent event) {
+    try {
+      eventListener.accept(event);
+    } catch (RuntimeException exception) {
+      LOGGER.warn("Listener de evento falhou para {}.", event.eventType());
+    }
   }
 
   @Override

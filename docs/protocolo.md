@@ -736,7 +736,8 @@ Exemplos:
 | Entrada no cliente | Envelope enviado |
 | --- | --- |
 | `/sair` | `ClientRequest action=LOGOUT` |
-| `/msg maria Oi` | `ClientRequest action=SEND_DIRECT` |
+| `/msg @maria Oi` | `ClientRequest action=SEND_DIRECT` |
+| `/msg #devs Oi` | `ClientRequest action=SEND_GROUP` |
 | `/grupo criar devs Desenvolvedores` | `ClientRequest action=CREATE_GROUP` |
 | `/grupo entrar devs` | `ClientRequest action=JOIN_GROUP` |
 

@@ -43,16 +43,17 @@ Exemplo de saída:
 
 ---
 
-### `/msg <username|groupCode> <mensagem>`
+### `/msg <@username|#groupCode> <mensagem>`
 
 Envia uma mensagem para um contato (mensagem direta) ou para um grupo (mensagem de grupo).
 
-- Se o destino estiver no cache de grupos (atualizado via `/list`), a mensagem é enviada como `SEND_GROUP`.
-- Caso contrário, tenta `SEND_DIRECT`. Se falhar porque o usuário não foi encontrado ou está offline, tenta `SEND_GROUP` como fallback.
+- Use `@username` para deixar explícito que o destino é um usuário.
+- Use `#groupCode` para deixar explícito que o destino é um grupo.
+- Por compatibilidade, se o destino sem prefixo estiver no cache de grupos (atualizado via `/list`), a mensagem é enviada como `SEND_GROUP`. Caso contrário, é enviada como `SEND_DIRECT`.
 
 ```
-/msg alice Olá, tudo bem?
-/msg devs Reunião amanhã às 10h
+/msg @alice Olá, tudo bem?
+/msg #devs Reunião amanhã às 10h
 ```
 
 Respostas:
@@ -63,13 +64,13 @@ Respostas:
 
 ---
 
-### `/chat <username|groupCode>`
+### `/chat <@username|#groupCode>`
 
 Exibe o histórico de conversa com um contato (escopo `DIRECT`) ou de um grupo (escopo `GROUP`). Utiliza o cache de grupos para decidir o escopo automaticamente.
 
 ```
-/chat alice
-/chat devs
+/chat @alice
+/chat #devs
 ```
 
 Exemplo de saída:
@@ -102,6 +103,22 @@ Responde à última mensagem recebida, seja ela direta ou de grupo. O contexto d
 /reply Claro, podemos sim!
 /responder Combinado!
 ```
+
+---
+
+### `/grupo <ação> ...`
+
+Gerencia grupos pelo cliente de terminal.
+
+```
+/grupo criar devs Desenvolvedores
+/grupo entrar devs
+/grupo sair devs
+/grupo renomear devs Devs BR
+/grupo excluir devs
+```
+
+As ações são traduzidas para `CREATE_GROUP`, `JOIN_GROUP`, `LEAVE_GROUP`, `RENAME_GROUP` e `DELETE_GROUP`.
 
 ---
 

@@ -111,7 +111,7 @@ final class MessageActions {
   ServiceResult getHistory(ChatSession session, ClientRequest request, PayloadReader payload)
       throws InvalidPayloadException, ServiceFailureException {
     ActionPayloads.HistoryPayload history = payload.history(100);
-    String scope = history.scope();
+    MessageScope scope = MessageScope.parse(history.scope());
     String target = history.target();
     int limit = history.limit();
     List<MessageRecord> source = historySource(session, request, scope, target);
@@ -123,26 +123,32 @@ final class MessageActions {
             request.requestId(),
             Codes.HISTORY_RETURNED,
             "Histórico retornado.",
-            Payloads.historyResult(scope, target, messages)));
+            Payloads.historyResult(scope.name(), target, messages)));
   }
 
   private List<MessageRecord> historySource(
-      ChatSession session, ClientRequest request, String scope, String target)
+      ChatSession session, ClientRequest request, MessageScope scope, String target)
       throws InvalidPayloadException, ServiceFailureException {
-    if ("DIRECT".equals(scope)) {
-      if (state.findUser(target) == null) {
-        throw new ServiceFailureException(Codes.USER_NOT_FOUND, "Usuário não encontrado.");
-      }
-      return state.directHistoryBetween(session.username(), target);
+    return switch (scope) {
+      case DIRECT -> directHistory(session, target);
+      case GROUP -> groupHistory(session, request, target);
+    };
+  }
+
+  private List<MessageRecord> directHistory(ChatSession session, String target)
+      throws ServiceFailureException {
+    if (state.findUser(target) == null) {
+      throw new ServiceFailureException(Codes.USER_NOT_FOUND, "Usuário não encontrado.");
     }
-    if ("GROUP".equals(scope)) {
-      GroupRecord group = groupActions.findGroupOrError(request, target);
-      if (!group.hasMember(session.username())) {
-        throw new ServiceFailureException(
-            Codes.NOT_GROUP_MEMBER, "Usuário não participa do grupo.");
-      }
-      return group.historySnapshot();
+    return state.directHistoryBetween(session.username(), target);
+  }
+
+  private List<MessageRecord> groupHistory(
+      ChatSession session, ClientRequest request, String target) throws ServiceFailureException {
+    GroupRecord group = groupActions.findGroupOrError(request, target);
+    if (!group.hasMember(session.username())) {
+      throw new ServiceFailureException(Codes.NOT_GROUP_MEMBER, "Usuário não participa do grupo.");
     }
-    throw new InvalidPayloadException("Scope inválido.");
+    return group.historySnapshot();
   }
 }

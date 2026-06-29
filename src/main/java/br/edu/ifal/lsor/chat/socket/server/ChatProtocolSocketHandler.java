@@ -13,8 +13,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,14 +21,13 @@ public final class ChatProtocolSocketHandler {
   private static final Logger LOGGER = LogManager.getLogger(ChatProtocolSocketHandler.class);
 
   private final InMemoryChatService service;
-  private final ConcurrentMap<String, ClientConnection> connections;
+  private final ConnectionRegistry connections;
 
   public ChatProtocolSocketHandler(InMemoryChatService service) {
-    this(service, new ConcurrentHashMap<>());
+    this(service, new ConnectionRegistry());
   }
 
-  ChatProtocolSocketHandler(
-      InMemoryChatService service, ConcurrentMap<String, ClientConnection> connections) {
+  ChatProtocolSocketHandler(InMemoryChatService service, ConnectionRegistry connections) {
     this.service = service;
     this.connections = connections;
   }
@@ -59,9 +56,7 @@ public final class ChatProtocolSocketHandler {
           ServiceResult result;
           synchronized (service) {
             result = service.handle(session, request);
-            if (session.isAuthenticated()) {
-              connections.put(session.username(), connection);
-            }
+            connections.register(session, connection);
           }
 
           connection.send(result.response());
@@ -92,18 +87,18 @@ public final class ChatProtocolSocketHandler {
   void dispatch(List<OutboundEvent> events) {
     for (OutboundEvent event : events) {
       for (String username : event.targetUsernames()) {
-        ClientConnection connection = connections.get(username);
+        ClientConnection connection = connections.connection(username);
         if (connection == null) {
           continue;
         }
         try {
           connection.send(event.event());
         } catch (RuntimeException exception) {
-          connections.remove(username, connection);
+          ChatSession disconnected = connections.remove(username, connection);
           LOGGER.warn("Falha ao enviar evento para {}.", username);
-          // NOTE: only the socket mapping is removed here; the domain session
-          // is not disconnected automatically. A future plan may map username
-          // back to ChatSession and call service.disconnect.
+          if (disconnected != null) {
+            dispatch(service.disconnect(disconnected));
+          }
         }
       }
     }

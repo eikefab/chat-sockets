@@ -1,6 +1,7 @@
 package br.edu.ifal.lsor.chat.terminal;
 
 import br.edu.ifal.lsor.chat.protocol.Actions;
+import br.edu.ifal.lsor.chat.protocol.Codes;
 import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 import br.edu.ifal.lsor.chat.socket.client.ChatClientSocket;
 import java.io.Serializable;
@@ -22,6 +23,9 @@ final class CommandHandler {
           "/responder", "/reply",
           "/?", "/help",
           "/ajuda", "/help");
+
+  private static final String DIRECT_SCOPE = "DIRECT";
+  private static final String GROUP_SCOPE = "GROUP";
 
   private final ChatClientSocket client;
   private final String username;
@@ -54,6 +58,7 @@ final class CommandHandler {
       case "/sair" -> cmdSair();
       case "/msg" -> cmdMsg(args);
       case "/chat" -> cmdChat(args);
+      case "/grupo" -> cmdGroup(args);
       case "/list" -> cmdList();
       case "/reply" -> cmdReply(args);
       case "/help" -> cmdHelp();
@@ -79,8 +84,9 @@ final class CommandHandler {
     printLine("=== Comandos Disponíveis ===");
     printLine("  /help, /?, /ajuda               — Mostra esta ajuda");
     printLine("  /list, /listar                  — Lista contatos e grupos");
-    printLine("  /msg <destino> <mensagem>       — Envia mensagem (direta ou grupo)");
-    printLine("  /chat <username|groupCode>      — Exibe histórico da conversa");
+    printLine("  /msg <@usuario|#grupo> <msg>    — Envia mensagem");
+    printLine("  /chat <@usuario|#grupo>         — Exibe histórico");
+    printLine("  /grupo <ação> ...                — Gerencia grupos");
     printLine("  /reply, /responder <mensagem>   — Responde à última mensagem recebida");
     printLine("  /sair                           — Sai do chat");
   }
@@ -88,23 +94,24 @@ final class CommandHandler {
   private void cmdMsg(String args) throws Exception {
     String target = extractTarget(args);
     if (target == null) {
-      printLine("Uso: /msg <username|groupCode> <mensagem>");
+      printLine("Uso: /msg <@usuario|#grupo> <mensagem>");
       return;
     }
     String text = args.substring(target.length()).trim();
     if (text.isEmpty()) {
-      printLine("Uso: /msg <username|groupCode> <mensagem>");
+      printLine("Uso: /msg <@usuario|#grupo> <mensagem>");
       return;
     }
 
-    if (groupCache.contains(target)) {
-      sendGroupMessage(target, text);
+    ChatTarget chatTarget = parseChatTarget(target);
+    if (chatTarget.scope() == TargetScope.GROUP) {
+      sendGroupMessage(chatTarget.value(), text);
     } else {
-      sendDirectOrFallback(target, text);
+      sendDirectMessage(chatTarget.value(), text);
     }
   }
 
-  private void sendDirectOrFallback(String target, String text) throws Exception {
+  private void sendDirectMessage(String target, String text) throws Exception {
     Map<String, Serializable> payload = new HashMap<>();
     payload.put("targetUsername", target);
     payload.put("text", text);
@@ -112,8 +119,6 @@ final class CommandHandler {
     ServerResponse response = client.send(Actions.SEND_DIRECT, payload).get();
     if (response.isOk()) {
       printLine("Enviado para " + target + ".");
-    } else if ("USER_NOT_FOUND".equals(response.code()) || "USER_OFFLINE".equals(response.code())) {
-      sendGroupMessage(target, text);
     } else {
       printLine("Erro: " + response.message());
     }
@@ -134,28 +139,11 @@ final class CommandHandler {
 
   private void cmdChat(String args) throws Exception {
     if (args.isEmpty()) {
-      printLine("Uso: /chat <username|groupCode>");
+      printLine("Uso: /chat <@usuario|#grupo>");
       return;
     }
-    String target = args.trim();
-
-    if (groupCache.contains(target)) {
-      fetchAndPrintHistory("GROUP", target);
-      return;
-    }
-
-    Map<String, Serializable> payload = new HashMap<>();
-    payload.put("scope", "DIRECT");
-    payload.put("target", target);
-
-    ServerResponse response = client.send(Actions.GET_HISTORY, payload).get();
-    if (response.isOk()) {
-      printHistory(response, target);
-    } else if ("USER_NOT_FOUND".equals(response.code())) {
-      fetchAndPrintHistory("GROUP", target);
-    } else {
-      printLine("Erro: " + response.message());
-    }
+    ChatTarget target = parseChatTarget(args.trim());
+    fetchAndPrintHistory(target.scope().protocolValue(), target.value());
   }
 
   private void fetchAndPrintHistory(String scope, String target) throws Exception {
@@ -271,15 +259,7 @@ final class CommandHandler {
     }
 
     if (eventPrinter.getReplyTargetUsername() != null) {
-      Map<String, Serializable> payload = new HashMap<>();
-      payload.put("targetUsername", eventPrinter.getReplyTargetUsername());
-      payload.put("text", text);
-      ServerResponse response = client.send(Actions.SEND_DIRECT, payload).get();
-      if (response.isOk()) {
-        printLine("Enviado para " + eventPrinter.getReplyTargetUsername() + ".");
-      } else {
-        printLine("Erro: " + response.message());
-      }
+      sendDirectMessage(eventPrinter.getReplyTargetUsername(), text);
       return;
     }
 
@@ -310,9 +290,124 @@ final class CommandHandler {
     return args.substring(0, space);
   }
 
+  private String firstToken(String args) {
+    int space = args.indexOf(' ');
+    return space < 0 ? args : args.substring(0, space);
+  }
+
+  private String stripGroupPrefix(String groupCode) {
+    return groupCode.startsWith("#") ? groupCode.substring(1) : groupCode;
+  }
+
+  private ChatTarget parseChatTarget(String rawTarget) {
+    if (rawTarget.startsWith("#")) {
+      return new ChatTarget(TargetScope.GROUP, rawTarget.substring(1));
+    }
+    if (rawTarget.startsWith("@")) {
+      return new ChatTarget(TargetScope.DIRECT, rawTarget.substring(1));
+    }
+    if (groupCache.contains(rawTarget)) {
+      return new ChatTarget(TargetScope.GROUP, rawTarget);
+    }
+    return new ChatTarget(TargetScope.DIRECT, rawTarget);
+  }
+
+  private void cmdGroup(String args) throws Exception {
+    String command = firstToken(args);
+    if (command.isEmpty()) {
+      printLine("Uso: /grupo <criar|entrar|sair|renomear|excluir> ...");
+      return;
+    }
+    String rest = args.substring(command.length()).trim();
+    switch (command.toLowerCase()) {
+      case "criar" -> createGroup(rest);
+      case "entrar" -> groupCodeAction(Actions.JOIN_GROUP, rest);
+      case "sair" -> groupCodeAction(Actions.LEAVE_GROUP, rest);
+      case "excluir" -> groupCodeAction(Actions.DELETE_GROUP, rest);
+      case "renomear" -> renameGroup(rest);
+      default -> printLine("Uso: /grupo <criar|entrar|sair|renomear|excluir> ...");
+    }
+  }
+
+  private void createGroup(String args) throws Exception {
+    String groupCode = extractTarget(args);
+    if (groupCode == null) {
+      printLine("Uso: /grupo criar <groupCode> <nome>");
+      return;
+    }
+    String displayName = args.substring(groupCode.length()).trim();
+    groupCode = stripGroupPrefix(groupCode);
+    if (displayName.isEmpty()) {
+      printLine("Uso: /grupo criar <groupCode> <nome>");
+      return;
+    }
+    Map<String, Serializable> payload = new HashMap<>();
+    payload.put("groupCode", groupCode);
+    payload.put("displayName", displayName);
+    handleGroupResponse(client.send(Actions.CREATE_GROUP, payload).get(), groupCode, displayName);
+  }
+
+  private void renameGroup(String args) throws Exception {
+    String groupCode = extractTarget(args);
+    if (groupCode == null) {
+      printLine("Uso: /grupo renomear <groupCode> <novo nome>");
+      return;
+    }
+    String displayName = args.substring(groupCode.length()).trim();
+    groupCode = stripGroupPrefix(groupCode);
+    if (displayName.isEmpty()) {
+      printLine("Uso: /grupo renomear <groupCode> <novo nome>");
+      return;
+    }
+    Map<String, Serializable> payload = new HashMap<>();
+    payload.put("groupCode", groupCode);
+    payload.put("displayName", displayName);
+    handleGroupResponse(client.send(Actions.RENAME_GROUP, payload).get(), groupCode, displayName);
+  }
+
+  private void groupCodeAction(String action, String groupCode) throws Exception {
+    groupCode = stripGroupPrefix(groupCode);
+    if (groupCode.isEmpty()) {
+      printLine("Informe o código do grupo.");
+      return;
+    }
+    ServerResponse response = client.send(action, Map.of("groupCode", groupCode)).get();
+    handleGroupResponse(response, groupCode, groupCache.displayName(groupCode));
+  }
+
+  private void handleGroupResponse(ServerResponse response, String groupCode, String displayName) {
+    if (!response.isOk()) {
+      printLine("Erro: " + response.message());
+      return;
+    }
+    if (Codes.GROUP_DELETED.equals(response.code()) || Codes.GROUP_LEFT.equals(response.code())) {
+      groupCache.remove(groupCode);
+    } else {
+      groupCache.put(groupCode, displayName);
+    }
+    printLine(response.message());
+  }
+
   private void printLine(String text) {
     synchronized (printLock) {
       System.out.println(text);
     }
   }
+
+  private enum TargetScope {
+    DIRECT(DIRECT_SCOPE),
+    GROUP(GROUP_SCOPE);
+
+    private final String protocolValue;
+
+    TargetScope(String protocolValue) {
+      this.protocolValue = protocolValue;
+    }
+
+    String protocolValue() {
+      return protocolValue;
+    }
+  }
+
+  private record ChatTarget(TargetScope scope, String value) {}
 }

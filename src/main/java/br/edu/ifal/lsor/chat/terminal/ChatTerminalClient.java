@@ -59,7 +59,6 @@ public final class ChatTerminalClient {
       return;
     }
 
-    eventPrinter = new TerminalEventPrinter(username, groupCache, printLock);
     commandHandler = new CommandHandler(client, username, groupCache, eventPrinter, printLock);
 
     Runtime.getRuntime()
@@ -117,6 +116,7 @@ public final class ChatTerminalClient {
       if (response.isOk()) {
         this.username = user;
         this.displayName = display;
+        this.eventPrinter = new TerminalEventPrinter(username, groupCache, printLock);
         return true;
       }
       printLine("Falha no login: " + response.message());
@@ -162,7 +162,9 @@ public final class ChatTerminalClient {
   }
 
   private void handleEvent(ServerEvent event) {
-    eventPrinter.handleEvent(event);
+    if (eventPrinter != null) {
+      eventPrinter.handleEvent(event);
+    }
   }
 
   private void handleDisconnect() {
