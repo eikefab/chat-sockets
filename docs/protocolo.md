@@ -43,7 +43,7 @@ A comunicação usa uma única conexão TCP por cliente.
 
 O cliente precisa manter uma rotina de leitura contínua. Essa rotina deve distinguir `ServerResponse` de `ServerEvent`. Respostas são correlacionadas por `requestId`; eventos não respondem diretamente a uma requisição.
 
-Implementações devem instalar um `ObjectInputFilter` nos streams de entrada, permitindo apenas os envelopes do protocolo (`br.edu.ifal.lsor.chat.protocol.*`) e os tipos de valor Java exigidos (`java.lang.*`, `java.util.*`, `java.time.*`), com limites de grafo (`maxdepth=20`, `maxrefs=1000`, `maxbytes=1000000`, `maxarray=1000000`). Objetos fora dessa lista devem ser rejeitados.
+Implementações devem instalar um `ObjectInputFilter` nos streams de entrada, permitindo apenas os envelopes do protocolo (`ClientRequest`, `ServerResponse`, `ServerEvent`), tipos de valor exigidos pelo contrato (`String`, `Boolean`, `Integer`, `Long`, `UUID`, `Instant`) e as implementações mínimas de `Map`/`List` necessárias para transportar payloads. O filtro deve manter limites de grafo (`maxdepth=20`, `maxrefs=1000`, `maxbytes=1000000`, `maxarray=1000000`). Objetos fora dessa lista devem ser rejeitados.
 
 ```mermaid
 flowchart LR

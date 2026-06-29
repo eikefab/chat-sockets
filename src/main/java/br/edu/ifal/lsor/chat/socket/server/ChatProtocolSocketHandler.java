@@ -42,7 +42,7 @@ public final class ChatProtocolSocketHandler {
       ClientConnection connection = new ClientConnection(output);
 
       try (ObjectInputStream input = new ObjectInputStream(socket.getInputStream())) {
-        ChatObjectInputFilters.applyProtocolFilter(input);
+        input.setObjectInputFilter(ChatObjectInputFilters.protocolFilter());
         while (true) {
           Object object = input.readObject();
           if (!(object instanceof ClientRequest request)) {

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import br.edu.ifal.lsor.chat.protocol.Actions;
+import br.edu.ifal.lsor.chat.protocol.ClientRequest;
 import br.edu.ifal.lsor.chat.protocol.Codes;
 import br.edu.ifal.lsor.chat.protocol.Events;
 import br.edu.ifal.lsor.chat.protocol.ServerEvent;
@@ -431,6 +432,21 @@ class ChatServerProtocolIntegrationTest {
 
   @Test
   void nonProtocolClassIsRejectedByInputFilter() throws Exception {
+    assertServerRejectsObject(BigInteger.valueOf(42));
+  }
+
+  @Test
+  void clientRequestWithNonProtocolPayloadValueIsRejectedByInputFilter() throws Exception {
+    assertServerRejectsObject(
+        ClientRequest.of(
+            Actions.LOGIN,
+            Map.<String, Serializable>of(
+                "username", "payload-filter",
+                "displayName", "Payload Filter",
+                "unexpectedNumber", BigInteger.valueOf(42))));
+  }
+
+  private static void assertServerRejectsObject(Serializable object) throws Exception {
     TestServerFixture fixture = startTestServer(10);
 
     try (Socket rawSocket = new Socket("127.0.0.1", fixture.server.getBoundPort())) {
@@ -441,7 +457,7 @@ class ChatServerProtocolIntegrationTest {
       Thread.sleep(100);
 
       ObjectInputStream in = new ObjectInputStream(rawSocket.getInputStream());
-      out.writeObject(BigInteger.valueOf(42));
+      out.writeObject(object);
       out.flush();
 
       assertThrows(Exception.class, in::readObject);

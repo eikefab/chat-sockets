@@ -58,7 +58,7 @@ public class ChatClientSocket implements AutoCloseable {
       this.output = new ObjectOutputStream(socket.getOutputStream());
       this.output.flush();
       this.input = new ObjectInputStream(socket.getInputStream());
-      ChatObjectInputFilters.applyProtocolFilter(input);
+      input.setObjectInputFilter(ChatObjectInputFilters.protocolFilter());
       this.running = true;
       this.readerThread = new Thread(this::readLoop, "chat-client-reader");
       this.readerThread.setDaemon(true);
