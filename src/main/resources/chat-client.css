@@ -537,12 +537,74 @@
 }
 
 .dialog-pane .content {
-  -fx-padding: 6px 18px 12px 18px;
+  -fx-padding: 6px 18px 16px 18px;
   -fx-background-color: transparent;
 }
 
 .dialog-pane .button-bar {
   -fx-padding: 6px 14px 14px 14px;
+}
+
+.dialog-pane .button-bar .button {
+  -fx-min-width: 96px;
+}
+
+/* Corpo do diálogo: respiro vertical entre cabeçalho e grupos de campo */
+.dialog-body {
+  -fx-spacing: 14px;
+}
+
+/* Badge circular com tinta de acento — abriga o ícone do cabeçalho */
+.dialog-icon-badge {
+  -fx-background-color: #eceefb;
+  -fx-background-radius: 999px;
+  -fx-min-width: 40px;
+  -fx-pref-width: 40px;
+  -fx-max-width: 40px;
+  -fx-min-height: 40px;
+  -fx-pref-height: 40px;
+  -fx-max-height: 40px;
+  -fx-alignment: center;
+}
+
+.dialog-icon-badge .ikonli-font-icon {
+  -fx-icon-color: #5e6ad2;
+  -fx-icon-size: 20px;
+}
+
+.dialog-icon-badge.danger {
+  -fx-background-color: #fdeced;
+}
+
+.dialog-icon-badge.danger .ikonli-font-icon {
+  -fx-icon-color: #e5484d;
+}
+
+.dialog-title {
+  -fx-font-size: 16px;
+  -fx-font-weight: 600;
+  -fx-text-fill: #18181b;
+}
+
+.dialog-subtitle {
+  -fx-font-size: 13px;
+  -fx-text-fill: #6b7280;
+}
+
+.dialog-text {
+  -fx-font-size: 13px;
+  -fx-text-fill: #18181b;
+}
+
+/* Agrupa label + campo + dica com respiro consistente */
+.dialog-fieldgroup {
+  -fx-spacing: 6px;
+}
+
+/* Texto de ajuda abaixo do campo (explica "código" vs "nome público") */
+.field-hint {
+  -fx-font-size: 12px;
+  -fx-text-fill: #6b7280;
 }
 
 /* ---------- Separator ---------- */

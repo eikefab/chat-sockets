@@ -1,5 +1,12 @@
 package br.edu.ifal.lsor.chat.socket;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import br.edu.ifal.lsor.chat.protocol.ClientRequest;
+import br.edu.ifal.lsor.chat.protocol.Protocol;
+import br.edu.ifal.lsor.chat.protocol.ServerEvent;
+import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InvalidClassException;
@@ -11,15 +18,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
-
-import br.edu.ifal.lsor.chat.protocol.ClientRequest;
-import br.edu.ifal.lsor.chat.protocol.Protocol;
-import br.edu.ifal.lsor.chat.protocol.ServerEvent;
-import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 
 class ChatObjectInputFiltersTest {
 
