@@ -9,8 +9,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public final class ChatTerminalClient {
+
+  private static final Logger LOGGER = LogManager.getLogger(ChatTerminalClient.class);
 
   private final String host;
   private final int port;
@@ -19,7 +23,6 @@ public final class ChatTerminalClient {
   private String displayName;
 
   private final GroupCache groupCache = new GroupCache();
-  private final Object printLock = new Object();
   private final Scanner scanner = new Scanner(System.in);
 
   private TerminalEventPrinter eventPrinter;
@@ -46,7 +49,7 @@ public final class ChatTerminalClient {
     try {
       client.openSocket();
     } catch (Exception exception) {
-      printLine("Falha ao conectar ao servidor: " + exception.getMessage());
+      LOGGER.error("Falha ao conectar ao servidor: {}", exception.getMessage());
       System.exit(1);
       return;
     }
@@ -59,7 +62,7 @@ public final class ChatTerminalClient {
       return;
     }
 
-    commandHandler = new CommandHandler(client, username, groupCache, eventPrinter, printLock);
+    commandHandler = new CommandHandler(client, username, groupCache, eventPrinter);
 
     Runtime.getRuntime()
         .addShutdownHook(
@@ -72,12 +75,12 @@ public final class ChatTerminalClient {
                 },
                 "chat-terminal-shutdown"));
 
-    printLine("=== Chat v1.0 ===");
-    printLine(
+    LOGGER.info("=== Chat v1.0 ===");
+    LOGGER.info(
         "Conectado como "
             + username
             + (displayName.equals(username) ? "" : " (" + displayName + ")"));
-    printLine("Digite /list para ver contatos e grupos. /sair para sair.");
+    LOGGER.info("Digite /list para ver contatos e grupos. /sair para sair.");
 
     commandHandler.refreshGroupCache();
 
@@ -86,7 +89,7 @@ public final class ChatTerminalClient {
 
   private String readLine() {
     if (!scanner.hasNextLine()) {
-      printLine("\nEntrada encerrada.");
+      LOGGER.info("Entrada encerrada.");
       System.exit(0);
       return "";
     }
@@ -94,14 +97,14 @@ public final class ChatTerminalClient {
   }
 
   private boolean doLogin() {
-    print("Nome de usuário: ");
+    LOGGER.info("Nome de usuário: ");
     String user = readLine().trim();
     if (user.isEmpty()) {
-      printLine("Nome de usuário não pode ser vazio.");
+      LOGGER.warn("Nome de usuário não pode ser vazio.");
       return false;
     }
 
-    print("Nome público (ENTER para usar '" + user + "'): ");
+    LOGGER.info("Nome público (ENTER para usar '{}'): ", user);
     String display = readLine().trim();
     if (display.isEmpty()) {
       display = user;
@@ -116,20 +119,20 @@ public final class ChatTerminalClient {
       if (response.isOk()) {
         this.username = user;
         this.displayName = display;
-        this.eventPrinter = new TerminalEventPrinter(username, groupCache, printLock);
+        this.eventPrinter = new TerminalEventPrinter(username, groupCache);
         return true;
       }
-      printLine("Falha no login: " + response.message());
+      LOGGER.error("Falha no login: {}", response.message());
       return false;
     } catch (Exception exception) {
-      printLine("Falha ao realizar login: " + exception.getMessage());
+      LOGGER.error("Falha ao realizar login: {}", exception.getMessage());
       return false;
     }
   }
 
   private void commandLoop() {
     while (true) {
-      print("> ");
+      LOGGER.info("> ");
       String line = readLine();
 
       line = line.trim();
@@ -138,7 +141,7 @@ public final class ChatTerminalClient {
       }
 
       if (!line.startsWith("/")) {
-        printLine("Comando desconhecido. Use /list para ver opções.");
+        LOGGER.warn("Comando desconhecido. Use /list para ver opções.");
         continue;
       }
 
@@ -156,7 +159,7 @@ public final class ChatTerminalClient {
       try {
         commandHandler.handle(command, args);
       } catch (Exception exception) {
-        printLine("Erro: " + exception.getMessage());
+        LOGGER.error("Erro: {}", exception.getMessage());
       }
     }
   }
@@ -172,20 +175,8 @@ public final class ChatTerminalClient {
       return;
     }
     if (username != null) {
-      printLine("\nConexão com o servidor perdida.");
+      LOGGER.error("Conexão com o servidor perdida.");
     }
     System.exit(1);
-  }
-
-  private void print(String text) {
-    synchronized (printLock) {
-      System.out.print(text);
-    }
-  }
-
-  private void printLine(String text) {
-    synchronized (printLock) {
-      System.out.println(text);
-    }
   }
 }

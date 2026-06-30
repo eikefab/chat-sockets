@@ -1,5 +1,7 @@
 package br.edu.ifal.lsor.chat;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Locale;
 import java.util.Set;
 import org.apache.commons.cli.CommandLine;
@@ -9,8 +11,12 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 final class ChatCommandLine {
+
+  private static final Logger LOGGER = LogManager.getLogger(ChatCommandLine.class);
 
   static final int DEFAULT_PORT = 8080;
   static final int DEFAULT_MAX_CLIENTS = 50;
@@ -58,7 +64,21 @@ final class ChatCommandLine {
   }
 
   static void printHelp() {
-    new HelpFormatter().printHelp("java -jar chat-sockets.jar", options(), true);
+    StringWriter output = new StringWriter();
+    PrintWriter writer = new PrintWriter(output);
+    new HelpFormatter()
+        .printHelp(
+            writer,
+            HelpFormatter.DEFAULT_WIDTH,
+            "java -jar chat-sockets.jar",
+            null,
+            options(),
+            HelpFormatter.DEFAULT_LEFT_PAD,
+            HelpFormatter.DEFAULT_DESC_PAD,
+            null,
+            true);
+    writer.flush();
+    LOGGER.info("{}", output.toString().stripTrailing());
   }
 
   private static Options options() {

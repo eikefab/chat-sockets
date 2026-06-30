@@ -247,11 +247,7 @@ class ChatTerminalClientTest {
     FakeChatClientSocket fakeClient = new FakeChatClientSocket(emptyGroupsResponse);
     CommandHandler handler =
         new CommandHandler(
-            fakeClient,
-            "alice",
-            groupCache,
-            new TerminalEventPrinter("alice", groupCache, new Object()),
-            new Object());
+            fakeClient, "alice", groupCache, new TerminalEventPrinter("alice", groupCache));
 
     handler.refreshGroupCache();
 

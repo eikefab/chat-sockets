@@ -11,8 +11,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 final class CommandHandler {
+
+  private static final Logger LOGGER = LogManager.getLogger(CommandHandler.class);
 
   private static final DateTimeFormatter TIME_FORMATTER =
       DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
@@ -31,7 +35,6 @@ final class CommandHandler {
   private final String username;
   private final GroupCache groupCache;
   private final TerminalEventPrinter eventPrinter;
-  private final Object printLock;
 
   private volatile boolean closingGracefully;
 
@@ -39,13 +42,11 @@ final class CommandHandler {
       ChatClientSocket client,
       String username,
       GroupCache groupCache,
-      TerminalEventPrinter eventPrinter,
-      Object printLock) {
+      TerminalEventPrinter eventPrinter) {
     this.client = client;
     this.username = username;
     this.groupCache = groupCache;
     this.eventPrinter = eventPrinter;
-    this.printLock = printLock;
   }
 
   boolean isClosingGracefully() {
@@ -62,7 +63,7 @@ final class CommandHandler {
       case "/list" -> cmdList();
       case "/reply" -> cmdReply(args);
       case "/help" -> cmdHelp();
-      default -> printLine("Comando desconhecido: " + command + ". Use /help para ver opções.");
+      default -> LOGGER.warn("Comando desconhecido: {}. Use /help para ver opções.", command);
     }
   }
 
@@ -76,30 +77,30 @@ final class CommandHandler {
       client.close();
     } catch (Exception ignored) {
     }
-    printLine("Desconectado.");
+    LOGGER.info("Desconectado.");
     System.exit(0);
   }
 
   private void cmdHelp() {
-    printLine("=== Comandos Disponíveis ===");
-    printLine("  /help, /?, /ajuda               — Mostra esta ajuda");
-    printLine("  /list, /listar                  — Lista contatos e grupos");
-    printLine("  /msg <@usuario|#grupo> <msg>    — Envia mensagem");
-    printLine("  /chat <@usuario|#grupo>         — Exibe histórico");
-    printLine("  /grupo <ação> ...                — Gerencia grupos");
-    printLine("  /reply, /responder <mensagem>   — Responde à última mensagem recebida");
-    printLine("  /sair                           — Sai do chat");
+    LOGGER.info("=== Comandos Disponíveis ===");
+    LOGGER.info("  /help, /?, /ajuda               — Mostra esta ajuda");
+    LOGGER.info("  /list, /listar                  — Lista contatos e grupos");
+    LOGGER.info("  /msg <@usuario|#grupo> <msg>    — Envia mensagem");
+    LOGGER.info("  /chat <@usuario|#grupo>         — Exibe histórico");
+    LOGGER.info("  /grupo <ação> ...                — Gerencia grupos");
+    LOGGER.info("  /reply, /responder <mensagem>   — Responde à última mensagem recebida");
+    LOGGER.info("  /sair                           — Sai do chat");
   }
 
   private void cmdMsg(String args) throws Exception {
     String target = extractTarget(args);
     if (target == null) {
-      printLine("Uso: /msg <@usuario|#grupo> <mensagem>");
+      LOGGER.warn("Uso: /msg <@usuario|#grupo> <mensagem>");
       return;
     }
     String text = args.substring(target.length()).trim();
     if (text.isEmpty()) {
-      printLine("Uso: /msg <@usuario|#grupo> <mensagem>");
+      LOGGER.warn("Uso: /msg <@usuario|#grupo> <mensagem>");
       return;
     }
 
@@ -118,9 +119,9 @@ final class CommandHandler {
 
     ServerResponse response = client.send(Actions.SEND_DIRECT, payload).get();
     if (response.isOk()) {
-      printLine("Enviado para " + target + ".");
+      LOGGER.info("Enviado para {}.", target);
     } else {
-      printLine("Erro: " + response.message());
+      LOGGER.error("Erro: {}", response.message());
     }
   }
 
@@ -131,15 +132,15 @@ final class CommandHandler {
 
     ServerResponse response = client.send(Actions.SEND_GROUP, payload).get();
     if (response.isOk()) {
-      printLine("Enviado para #" + groupCode + ".");
+      LOGGER.info("Enviado para #{}.", groupCode);
     } else {
-      printLine("Erro: " + response.message());
+      LOGGER.error("Erro: {}", response.message());
     }
   }
 
   private void cmdChat(String args) throws Exception {
     if (args.isEmpty()) {
-      printLine("Uso: /chat <@usuario|#grupo>");
+      LOGGER.warn("Uso: /chat <@usuario|#grupo>");
       return;
     }
     ChatTarget target = parseChatTarget(args.trim());
@@ -153,7 +154,7 @@ final class CommandHandler {
 
     ServerResponse response = client.send(Actions.GET_HISTORY, payload).get();
     if (!response.isOk()) {
-      printLine("Erro: " + response.message());
+      LOGGER.error("Erro: {}", response.message());
       return;
     }
     printHistory(response, target);
@@ -163,23 +164,23 @@ final class CommandHandler {
     List<Map<String, Serializable>> messages =
         ChatTerminalClient.listFromPayload(response.payload(), "messages");
     if (messages.isEmpty()) {
-      printLine("=== Histórico: " + target + " ===");
-      printLine("(sem mensagens)");
+      LOGGER.info("=== Histórico: {} ===", target);
+      LOGGER.info("(sem mensagens)");
       return;
     }
 
-    printLine("=== Histórico: " + target + " ===");
+    LOGGER.info("=== Histórico: {} ===", target);
     for (Map<String, Serializable> msg : messages) {
       String from = (String) msg.get("fromUsername");
       String text = (String) msg.get("text");
       Instant createdAt = (Instant) msg.get("createdAt");
       String time = createdAt != null ? TIME_FORMATTER.format(createdAt) : "--:--";
-      printLine("[" + time + "] " + from + ": " + text);
+      LOGGER.info("[{}] {}: {}", time, from, text);
     }
   }
 
   private void cmdList() throws Exception {
-    printLine("=== Contatos Online ===");
+    LOGGER.info("=== Contatos Online ===");
 
     try {
       ServerResponse usersResponse =
@@ -197,18 +198,19 @@ final class CommandHandler {
               tag = " (você)";
             }
             String status = Boolean.TRUE.equals(online) ? " [online]" : " [offline]";
-            printLine("  " + u + (d != null && !d.equals(u) ? " (" + d + ")" : "") + status + tag);
+            LOGGER.info(
+                "  {}{}{}{}", u, d != null && !d.equals(u) ? " (" + d + ")" : "", status, tag);
           }
         } else {
-          printLine("  (nenhum usuário)");
+          LOGGER.info("  (nenhum usuário)");
         }
       }
     } catch (Exception exception) {
-      printLine("  (erro ao carregar)");
+      LOGGER.warn("  (erro ao carregar)");
     }
 
-    printLine("");
-    printLine("=== Grupos ===");
+    LOGGER.info("");
+    LOGGER.info("=== Grupos ===");
 
     try {
       ServerResponse groupsResponse =
@@ -226,30 +228,27 @@ final class CommandHandler {
             Boolean isMember = (Boolean) group.get("isMember");
             if (gc != null) {
               String memberTag = Boolean.TRUE.equals(isMember) ? " [membro]" : "";
-              printLine(
-                  "  #"
-                      + gc
-                      + (gd != null ? " - " + gd : "")
-                      + " (dono: "
-                      + owner
-                      + ", "
-                      + (count != null ? count : "?")
-                      + " membros)"
-                      + memberTag);
+              LOGGER.info(
+                  "  #{}{} (dono: {}, {} membros){}",
+                  gc,
+                  gd != null ? " - " + gd : "",
+                  owner,
+                  count != null ? count : "?",
+                  memberTag);
             }
           }
         } else {
-          printLine("  (nenhum grupo)");
+          LOGGER.info("  (nenhum grupo)");
         }
       }
     } catch (Exception exception) {
-      printLine("  (erro ao carregar)");
+      LOGGER.warn("  (erro ao carregar)");
     }
   }
 
   private void cmdReply(String text) throws Exception {
     if (text.isEmpty()) {
-      printLine("Uso: /reply <mensagem>");
+      LOGGER.warn("Uso: /reply <mensagem>");
       return;
     }
 
@@ -263,7 +262,7 @@ final class CommandHandler {
       return;
     }
 
-    printLine("Nenhuma mensagem recebida para responder.");
+    LOGGER.warn("Nenhuma mensagem recebida para responder.");
   }
 
   void refreshGroupCache() {
@@ -276,7 +275,7 @@ final class CommandHandler {
         groupCache.populate(groups);
       }
     } catch (Exception exception) {
-      printLine("Aviso: não foi possível carregar a lista de grupos.");
+      LOGGER.warn("Aviso: não foi possível carregar a lista de grupos.");
     }
   }
 
@@ -313,7 +312,7 @@ final class CommandHandler {
   private void cmdGroup(String args) throws Exception {
     String command = firstToken(args);
     if (command.isEmpty()) {
-      printLine("Uso: /grupo <criar|entrar|sair|renomear|excluir> ...");
+      LOGGER.warn("Uso: /grupo <criar|entrar|sair|renomear|excluir> ...");
       return;
     }
     String rest = args.substring(command.length()).trim();
@@ -323,20 +322,20 @@ final class CommandHandler {
       case "sair" -> groupCodeAction(Actions.LEAVE_GROUP, rest);
       case "excluir" -> groupCodeAction(Actions.DELETE_GROUP, rest);
       case "renomear" -> renameGroup(rest);
-      default -> printLine("Uso: /grupo <criar|entrar|sair|renomear|excluir> ...");
+      default -> LOGGER.warn("Uso: /grupo <criar|entrar|sair|renomear|excluir> ...");
     }
   }
 
   private void createGroup(String args) throws Exception {
     String groupCode = extractTarget(args);
     if (groupCode == null) {
-      printLine("Uso: /grupo criar <groupCode> <nome>");
+      LOGGER.warn("Uso: /grupo criar <groupCode> <nome>");
       return;
     }
     String displayName = args.substring(groupCode.length()).trim();
     groupCode = stripGroupPrefix(groupCode);
     if (displayName.isEmpty()) {
-      printLine("Uso: /grupo criar <groupCode> <nome>");
+      LOGGER.warn("Uso: /grupo criar <groupCode> <nome>");
       return;
     }
     Map<String, Serializable> payload = new HashMap<>();
@@ -348,13 +347,13 @@ final class CommandHandler {
   private void renameGroup(String args) throws Exception {
     String groupCode = extractTarget(args);
     if (groupCode == null) {
-      printLine("Uso: /grupo renomear <groupCode> <novo nome>");
+      LOGGER.warn("Uso: /grupo renomear <groupCode> <novo nome>");
       return;
     }
     String displayName = args.substring(groupCode.length()).trim();
     groupCode = stripGroupPrefix(groupCode);
     if (displayName.isEmpty()) {
-      printLine("Uso: /grupo renomear <groupCode> <novo nome>");
+      LOGGER.warn("Uso: /grupo renomear <groupCode> <novo nome>");
       return;
     }
     Map<String, Serializable> payload = new HashMap<>();
@@ -366,7 +365,7 @@ final class CommandHandler {
   private void groupCodeAction(String action, String groupCode) throws Exception {
     groupCode = stripGroupPrefix(groupCode);
     if (groupCode.isEmpty()) {
-      printLine("Informe o código do grupo.");
+      LOGGER.warn("Informe o código do grupo.");
       return;
     }
     ServerResponse response = client.send(action, Map.of("groupCode", groupCode)).get();
@@ -375,7 +374,7 @@ final class CommandHandler {
 
   private void handleGroupResponse(ServerResponse response, String groupCode, String displayName) {
     if (!response.isOk()) {
-      printLine("Erro: " + response.message());
+      LOGGER.error("Erro: {}", response.message());
       return;
     }
     if (Codes.GROUP_DELETED.equals(response.code()) || Codes.GROUP_LEFT.equals(response.code())) {
@@ -383,13 +382,7 @@ final class CommandHandler {
     } else {
       groupCache.put(groupCode, displayName);
     }
-    printLine(response.message());
-  }
-
-  private void printLine(String text) {
-    synchronized (printLock) {
-      System.out.println(text);
-    }
+    LOGGER.info("{}", response.message());
   }
 
   private enum TargetScope {

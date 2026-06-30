@@ -24,7 +24,7 @@ public final class ChatApplicationMain {
         return;
       }
       if (config.version()) {
-        System.out.println(version());
+        LOGGER.info("{}", version());
         return;
       }
       switch (config.mode()) {
@@ -32,7 +32,7 @@ public final class ChatApplicationMain {
         case CLIENT -> runClient(config);
       }
     } catch (ParseException exception) {
-      System.err.println("Erro nos argumentos: " + exception.getMessage());
+      LOGGER.error("Erro nos argumentos: {}", exception.getMessage());
       ChatCommandLine.printHelp();
       System.exit(2);
     } catch (IllegalStateException exception) {
