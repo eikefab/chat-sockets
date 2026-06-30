@@ -1,5 +1,6 @@
 package br.edu.ifal.lsor.chat.gui;
 
+import java.net.URL;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.text.Font;
@@ -117,7 +118,8 @@ public final class ChatFxApplication extends Application {
   }
 
   private static void loadFont(String resource) {
-    java.net.URL url = ChatFxApplication.class.getResource(resource);
+    URL url = ChatFxApplication.class.getResource(resource);
+
     if (url != null) {
       Font.loadFont(url.toExternalForm(), 14);
     }
