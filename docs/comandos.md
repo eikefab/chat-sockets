@@ -1,176 +1,57 @@
-# Comandos da Interface de Terminal
+# Interface Gráfica do Cliente
 
-A interface do cliente opera via terminal. Os comandos são prefixados com `/`. Mensagens sem o prefixo `/` são tratadas como comando desconhecido.
-
----
+O cliente humano usa uma interface JavaFX. A GUI traduz as ações do usuário para os envelopes tipados definidos em `docs/protocolo.md`.
 
 ## Login
 
-Ao iniciar o cliente, dois prompts são exibidos:
+Ao iniciar o cliente, informe:
 
-```
-Nome de usuário: <digite>
-Nome público (ENTER para usar '<username>'): <digite>
-```
+- Host do servidor.
+- Porta TCP.
+- Nome de usuário.
+- Nome público, opcional. Quando vazio, usa o mesmo valor do nome de usuário.
 
-- **Nome de usuário**: identificador único, obrigatório, usado para endereçar mensagens diretas e identificar o usuário no sistema.
-- **Nome público**: nome exibido aos demais usuários. Se deixado em branco, assume o mesmo valor do nome de usuário.
+Após login aceito, a janela principal exibe contatos, grupos, histórico e campo de envio.
 
----
+## Conversas
 
-## Comandos
+A barra lateral lista usuários online e grupos existentes.
 
-### `/list` ou `/listar`
+- Selecione um usuário para carregar o histórico direto.
+- Selecione um grupo para carregar o histórico do grupo.
+- Use `Atualizar` para recarregar contatos e grupos manualmente.
 
-Lista os contatos disponíveis: usuários cadastrados (com status online/offline) e grupos existentes. Também atualiza o cache local de grupos, necessário para que `/msg` e `/chat` reconheçam grupos automaticamente.
+Mensagens recebidas por evento aparecem na conversa aberta quando ela corresponde ao remetente ou grupo.
 
-```
-/list
-```
+## Envio de mensagens
 
-Exemplo de saída:
+Digite o texto no campo inferior e use `Enviar`.
 
-```
-=== Contatos Online ===
-  alice (Alice Silva) [online]
-  bob (você) [online]
-  carlos [offline]
+- Para usuário, a GUI envia `SEND_DIRECT`.
+- Para grupo, a GUI envia `SEND_GROUP`.
+- Em caso de erro, a mensagem do servidor aparece na barra de status.
 
-=== Grupos ===
-  #devs - Desenvolvedores (dono: alice, 3 membros) [membro]
-  #geral - Geral (dono: admin, 5 membros)
-```
+## Grupos
 
----
+A interface oferece botões para:
 
-### `/msg <@username|#groupCode> <mensagem>`
+- `Criar`: envia `CREATE_GROUP`.
+- `Entrar`: envia `JOIN_GROUP`.
+- `Renomear`: envia `RENAME_GROUP` para o grupo selecionado.
+- `Sair`: envia `LEAVE_GROUP` para o grupo selecionado.
+- `Excluir`: envia `DELETE_GROUP` para o grupo selecionado após confirmação.
 
-Envia uma mensagem para um contato (mensagem direta) ou para um grupo (mensagem de grupo).
+As regras de permissão continuam no servidor. Por exemplo, somente o dono pode renomear ou excluir grupo.
 
-- Use `@username` para deixar explícito que o destino é um usuário.
-- Use `#groupCode` para deixar explícito que o destino é um grupo.
-- Por compatibilidade, se o destino sem prefixo estiver no cache de grupos (atualizado via `/list`), a mensagem é enviada como `SEND_GROUP`. Caso contrário, é enviada como `SEND_DIRECT`.
+## Eventos
 
-```
-/msg @alice Olá, tudo bem?
-/msg #devs Reunião amanhã às 10h
-```
+A GUI reage aos eventos assíncronos do servidor:
 
-Respostas:
+| Evento | Efeito na interface |
+| --- | --- |
+| `DIRECT_MESSAGE` | Adiciona a mensagem na conversa direta aberta e atualiza contatos. |
+| `GROUP_MESSAGE` | Adiciona a mensagem no grupo aberto. |
+| `USER_ONLINE` / `USER_OFFLINE` | Atualiza a lista de conversas. |
+| Eventos de grupo | Atualizam a lista de grupos e a barra de status. |
 
-- `Enviado para alice.` — mensagem direta enviada.
-- `Enviado para #devs.` — mensagem de grupo enviada.
-- `Erro: ...` — falha no envio (ex.: grupo não encontrado, permissão negada).
-
----
-
-### `/chat <@username|#groupCode>`
-
-Exibe o histórico de conversa com um contato (escopo `DIRECT`) ou de um grupo (escopo `GROUP`). Utiliza o cache de grupos para decidir o escopo automaticamente.
-
-```
-/chat @alice
-/chat #devs
-```
-
-Exemplo de saída:
-
-```
-=== Histórico: alice ===
-[14:30] alice: Olá!
-[14:31] bob: Oi, tudo bem?
-[14:32] alice: Tudo ótimo!
-```
-
-Se não houver mensagens:
-
-```
-=== Histórico: devs ===
-(sem mensagens)
-```
-
----
-
-### `/reply <mensagem>` ou `/responder <mensagem>`
-
-Responde à última mensagem recebida, seja ela direta ou de grupo. O contexto de resposta é definido automaticamente pelo evento de mensagem mais recente.
-
-- Se a última mensagem foi uma `DIRECT_MESSAGE`, envia `SEND_DIRECT` para o remetente.
-- Se foi uma `GROUP_MESSAGE`, envia `SEND_GROUP` para o grupo.
-- Se nenhuma mensagem foi recebida ainda, exibe: `Nenhuma mensagem recebida para responder.`
-
-```
-/reply Claro, podemos sim!
-/responder Combinado!
-```
-
----
-
-### `/grupo <ação> ...`
-
-Gerencia grupos pelo cliente de terminal.
-
-```
-/grupo criar devs Desenvolvedores
-/grupo entrar devs
-/grupo sair devs
-/grupo renomear devs Devs BR
-/grupo excluir devs
-```
-
-As ações são traduzidas para `CREATE_GROUP`, `JOIN_GROUP`, `LEAVE_GROUP`, `RENAME_GROUP` e `DELETE_GROUP`.
-
----
-
-### `/sair`
-
-Desconecta do servidor e encerra o cliente.
-
-```
-/sair
-```
-
-O cliente envia `LOGOUT` ao servidor, fecha a conexão e termina a execução.
-
----
-
-## Notificações de mensagens recebidas
-
-Ao receber uma mensagem (direta ou de grupo), o cliente exibe uma notificação no terminal:
-
-- **Mensagem direta**: `[MENSAGEM RECEBIDA] <remetente>: <texto>`
-- **Mensagem de grupo**: `[MENSAGEM RECEBIDA] <grupo>/<autor>: <texto>`
-
-Exemplos:
-
-```
-[MENSAGEM RECEBIDA] alice: Olá, bob!
-[MENSAGEM RECEBIDA] devs/carlos: Alguém viu o PR?
-```
-
-Essas mensagens atualizam automaticamente o contexto de `/reply`.
-
----
-
-## Eventos informativos
-
-O cliente também exibe notificações para eventos do sistema:
-
-| Evento | Mensagem exibida |
-|--------|-----------------|
-| Usuário entra | `Alice Silva (alice) entrou no chat.` |
-| Usuário sai | `carlos saiu do chat.` |
-| Grupo criado | `Grupo criado: #devs - Desenvolvedores` |
-| Grupo renomeado | `Grupo renomeado: #devs → Devs BR` |
-| Grupo excluído | `Grupo excluído: #devs` |
-| Membro entrou no grupo | `carlos entrou no grupo #devs.` |
-| Membro saiu do grupo | `maria saiu do grupo #devs.` |
-
----
-
-## Tratamento de erros
-
-- **Conexão perdida**: `Conexão com o servidor perdida.` — o cliente é encerrado.
-- **Login inválido**: exibe a mensagem de erro retornada pelo servidor e encerra.
-- **Comando desconhecido**: `Comando desconhecido. Use /list para ver opções.`
-- **Argumentos insuficientes**: exibe a sintaxe correta do comando.
+Se a conexão cair, a GUI mostra a falha na barra de status e bloqueia o envio.

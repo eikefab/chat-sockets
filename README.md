@@ -25,8 +25,8 @@ A troca de mensagens entre o cliente e o servidor ocorre por stream de objetos J
 ## Requisitos
 Escolha uma das formas de execução:
 
-* **Docker:** Docker e Docker Compose.
-* **Terminal/JAR:** Java 17+ instalado. Não é necessário instalar Gradle, pois o projeto inclui o Gradle Wrapper (`./gradlew`).
+* **Servidor em Docker:** Docker e Docker Compose.
+* **Cliente JavaFX local:** Java 17+ instalado. Não é necessário instalar Gradle, pois o projeto inclui o Gradle Wrapper (`./gradlew`).
 
 ## Como Executar com Docker Compose
 O `docker-compose.yml` sobe o servidor por padrão na porta `8080`.
@@ -35,13 +35,13 @@ O `docker-compose.yml` sobe o servidor por padrão na porta `8080`.
 docker compose up --build chat-server
 ```
 
-Em outro terminal, inicie um cliente interativo usando o perfil `client`:
+Em outro terminal, inicie o cliente JavaFX local apontando para o servidor:
 
 ```bash
-docker compose run --rm --service-ports chat-client
+./gradlew runClient \
+  -Pchat.host=127.0.0.1 \
+  -Pchat.port=8080
 ```
-
-O cliente do Compose usa `APP_HOST=chat-server`, ou seja, conecta automaticamente no serviço do servidor dentro da rede Docker.
 
 Para encerrar os containers:
 
@@ -70,17 +70,15 @@ docker run --rm -p 8080:8080 \
   chat-sockets
 ```
 
-Em outro terminal, inicie o cliente:
+Em outro terminal, inicie o cliente JavaFX local apontando para o servidor no Docker:
 
 ```bash
-docker run --rm -it \
-  -e APP_MODE=client \
-  -e APP_HOST=host.docker.internal \
-  -e APP_PORT=8080 \
-  chat-sockets
+./gradlew runClient \
+  -Pchat.host=127.0.0.1 \
+  -Pchat.port=8080
 ```
 
-No Linux, se `host.docker.internal` não estiver disponível, use o IP da máquina host ou execute cliente e servidor na mesma rede Docker.
+O cliente gráfico não é executado pelo Compose nesta versão, pois JavaFX precisa de uma sessão gráfica local.
 
 ### Variáveis de Ambiente da Imagem
 | Variável | Padrão | Uso |
@@ -112,6 +110,14 @@ java -jar build/libs/chat-sockets-1.0-SNAPSHOT.jar \
 Em outro terminal, inicie o cliente:
 
 ```bash
+./gradlew runClient \
+  -Pchat.host=127.0.0.1 \
+  -Pchat.port=8080
+```
+
+O modo cliente também pode ser iniciado pelo entrypoint principal quando o runtime JavaFX estiver disponível:
+
+```bash
 java -jar build/libs/chat-sockets-1.0-SNAPSHOT.jar \
   --client \
   --host 127.0.0.1 \
@@ -128,7 +134,7 @@ java -jar build/libs/chat-sockets-1.0-SNAPSHOT.jar --help
 | Opção | Modo | Padrão | Descrição |
 | --- | --- | --- | --- |
 | `--server` | Servidor | - | Executa a aplicação em modo servidor. |
-| `--client` | Cliente | - | Executa a aplicação em modo cliente. |
+| `--client` | Cliente | - | Executa a aplicação em modo cliente gráfico JavaFX. |
 | `--host <host>` | Ambos | Servidor: `0.0.0.0`; cliente: `127.0.0.1` | Host de bind ou destino da conexão. |
 | `--port <porta>` | Ambos | `8080` | Porta TCP. |
 | `--max-clients <número>` | Servidor | `50` | Limite de clientes simultâneos. |

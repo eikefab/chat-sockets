@@ -1,10 +1,10 @@
 package br.edu.ifal.lsor.chat;
 
 import br.edu.ifal.lsor.chat.ChatCommandLine.CliConfig;
+import br.edu.ifal.lsor.chat.gui.ChatFxApplication;
 import br.edu.ifal.lsor.chat.server.InMemoryChatService;
 import br.edu.ifal.lsor.chat.socket.server.ChatProtocolSocketHandler;
 import br.edu.ifal.lsor.chat.socket.server.ChatServer;
-import br.edu.ifal.lsor.chat.terminal.ChatTerminalClient;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,8 +57,7 @@ public final class ChatApplicationMain {
   }
 
   private static void runClient(CliConfig config) {
-    ChatTerminalClient terminal = new ChatTerminalClient(config.host(), config.port());
-    terminal.start();
+    ChatFxApplication.launchClient(config.host(), config.port());
   }
 
   private static String version() {

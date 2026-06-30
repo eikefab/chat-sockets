@@ -1,6 +1,8 @@
 plugins {
     id("java")
+    id("application")
     id("com.diffplug.spotless") version "8.7.0"
+    id("org.openjfx.javafxplugin") version "0.1.0"
 }
 
 group = "br.edu.ifal.lsor"
@@ -21,8 +23,45 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+application {
+    mainClass.set("br.edu.ifal.lsor.chat.ChatApplicationMain")
+}
+
+javafx {
+    version = "17.0.19"
+    modules = listOf("javafx.controls")
+}
+
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.register<JavaExec>("runClient") {
+    group = "application"
+    description = "Runs the JavaFX chat client."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("br.edu.ifal.lsor.chat.ChatApplicationMain")
+    args(
+        "--client",
+        "--host",
+        providers.gradleProperty("chat.host").getOrElse("127.0.0.1"),
+        "--port",
+        providers.gradleProperty("chat.port").getOrElse("8080")
+    )
+}
+
+tasks.register<JavaExec>("runServer") {
+    group = "application"
+    description = "Runs the chat server."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("br.edu.ifal.lsor.chat.ChatApplicationMain")
+    args(
+        "--server",
+        "--host",
+        providers.gradleProperty("chat.host").getOrElse("0.0.0.0"),
+        "--port",
+        providers.gradleProperty("chat.port").getOrElse("8080")
+    )
 }
 
 tasks.jar {

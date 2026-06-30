@@ -1,0 +1,57 @@
+.root {
+  -fx-font-family: "Arial";
+  -fx-font-size: 14px;
+  -fx-background-color: #f6f7f9;
+}
+
+.login {
+  -fx-background-color: white;
+  -fx-border-color: #d7dce2;
+  -fx-border-radius: 8px;
+  -fx-background-radius: 8px;
+}
+
+.title {
+  -fx-font-size: 20px;
+  -fx-font-weight: bold;
+}
+
+.status {
+  -fx-text-fill: #586170;
+}
+
+.list-view {
+  -fx-background-color: white;
+  -fx-border-color: #d7dce2;
+}
+
+.text-area,
+.text-field {
+  -fx-background-color: white;
+}
+
+.button {
+  -fx-background-radius: 6px;
+  -fx-border-radius: 6px;
+  -fx-padding: 7px 12px;
+}
+
+.message,
+.message-own {
+  -fx-background-color: white;
+  -fx-background-radius: 8px;
+  -fx-border-radius: 8px;
+  -fx-border-color: #d7dce2;
+  -fx-padding: 8px 10px;
+  -fx-max-width: 520px;
+}
+
+.message-own {
+  -fx-background-color: #e4f0ff;
+  -fx-border-color: #b9d5f5;
+}
+
+.message-author {
+  -fx-font-size: 12px;
+  -fx-text-fill: #586170;
+}
