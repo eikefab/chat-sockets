@@ -17,9 +17,9 @@ public record ChatMessage(
       String conversationId,
       String ownUsername,
       Map<String, Serializable> payload) {
-    String author = (String) payload.get("fromUsername");
-    String text = (String) payload.get("text");
-    Instant createdAt = (Instant) payload.get("createdAt");
+    String author = ChatPayloads.string(payload, "fromUsername");
+    String text = ChatPayloads.string(payload, "text");
+    Instant createdAt = ChatPayloads.instant(payload, "createdAt");
     return new ChatMessage(
         kind,
         conversationId,

@@ -7,17 +7,12 @@ public record ClientGroup(
     String groupCode, String displayName, String ownerUsername, int memberCount, boolean member) {
 
   public static ClientGroup fromPayload(Map<String, Serializable> payload) {
-    String groupCode = (String) payload.get("groupCode");
-    String displayName = (String) payload.get("displayName");
-    String ownerUsername = (String) payload.get("ownerUsername");
-    Integer memberCount = (Integer) payload.get("memberCount");
-    Boolean member = (Boolean) payload.get("isMember");
-    return new ClientGroup(
-        groupCode,
-        displayName != null ? displayName : groupCode,
-        ownerUsername,
-        memberCount != null ? memberCount : 0,
-        Boolean.TRUE.equals(member));
+    String groupCode = ChatPayloads.string(payload, "groupCode");
+    String displayName = ChatPayloads.optionalString(payload, "displayName").orElse(groupCode);
+    String ownerUsername = ChatPayloads.optionalString(payload, "ownerUsername").orElse("");
+    int memberCount = ChatPayloads.intValue(payload, "memberCount", 0);
+    boolean member = ChatPayloads.booleanValue(payload, "isMember", false);
+    return new ClientGroup(groupCode, displayName, ownerUsername, memberCount, member);
   }
 
   public String label() {
