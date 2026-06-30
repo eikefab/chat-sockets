@@ -108,6 +108,35 @@ class ChatClientSessionTest {
   }
 
   @Test
+  void defaultGroupListingReturnsOnlyMembershipGroups() throws Exception {
+    TestServerFixture fixture = startTestServer(10);
+
+    try (ChatClientSession owner =
+            new ChatClientSession(
+                "127.0.0.1", fixture.server.getBoundPort(), new ChatClientListener() {});
+        ChatClientSession outsider =
+            new ChatClientSession(
+                "127.0.0.1", fixture.server.getBoundPort(), new ChatClientListener() {})) {
+      owner.connect();
+      outsider.connect();
+      owner.login("owner-list", "Owner").get(3, TimeUnit.SECONDS);
+      outsider.login("outsider-list", "Outsider").get(3, TimeUnit.SECONDS);
+
+      owner.createGroup("private-g", "Private Group").get(3, TimeUnit.SECONDS);
+
+      List<ClientGroup> defaultGroups = outsider.listGroups().get(3, TimeUnit.SECONDS);
+      List<ClientGroup> allGroups = outsider.listGroups(false).get(3, TimeUnit.SECONDS);
+
+      assertTrue(defaultGroups.isEmpty());
+      assertEquals(1, allGroups.size());
+      assertEquals("private-g", allGroups.get(0).groupCode());
+      assertFalse(allGroups.get(0).member());
+    } finally {
+      stopTestServer(fixture);
+    }
+  }
+
+  @Test
   void directMessageToOfflineUserReturnsError() throws Exception {
     TestServerFixture fixture = startTestServer(10);
 

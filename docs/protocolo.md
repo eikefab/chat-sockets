@@ -181,7 +181,7 @@ Payload:
 
 | Campo | Tipo | Obrigatório | Descrição |
 | --- | --- | --- | --- |
-| `username` | `String` | Sim | Nome único usado para endereçar o usuário. |
+| `username` | `String` | Sim | Nome único usado para endereçar o usuário. O servidor aplica `trim` e normaliza para minúsculas. |
 | `displayName` | `String` | Sim | Nome exibido aos demais usuários. |
 
 Resposta `OK`:
@@ -193,6 +193,8 @@ Resposta `OK`:
 | `displayName` | `String` | Nome exibido confirmado. |
 
 Erros possíveis: `INVALID_PAYLOAD`, `USERNAME_ALREADY_ONLINE`.
+
+Regra: não podem existir duas sessões online com o mesmo `username`, ignorando maiúsculas/minúsculas. Nesta v1 sem senha, o mesmo `username` pode ser reutilizado após logout/desconexão.
 
 Eventos gerados: `USER_ONLINE` para todos os usuários online, exceto o próprio usuário recém-logado.
 
@@ -283,13 +285,13 @@ sequenceDiagram
 
 ### LIST_GROUPS
 
-Lista grupos existentes em memória.
+Lista grupos existentes em memória. Por padrão, retorna apenas grupos dos quais o usuário autenticado participa.
 
 Payload:
 
 | Campo | Tipo | Obrigatório | Descrição |
 | --- | --- | --- | --- |
-| `onlyMine` | `Boolean` | Não | Quando `true`, lista apenas grupos dos quais o usuário participa. Padrão: `false`. |
+| `onlyMine` | `Boolean` | Não | Quando `true`, lista apenas grupos dos quais o usuário participa. Quando `false`, lista todos os grupos. Padrão: `true`. |
 
 Resposta `OK`:
 

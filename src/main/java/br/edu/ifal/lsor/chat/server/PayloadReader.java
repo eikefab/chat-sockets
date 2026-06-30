@@ -2,6 +2,7 @@ package br.edu.ifal.lsor.chat.server;
 
 import br.edu.ifal.lsor.chat.protocol.ClientRequest;
 import java.io.Serializable;
+import java.util.Locale;
 
 final class PayloadReader {
 
@@ -31,6 +32,10 @@ final class PayloadReader {
     return trimmed;
   }
 
+  String requiredUsername(String key) throws InvalidPayloadException {
+    return requiredString(key, PayloadLimits.MAX_USERNAME_LENGTH).toLowerCase(Locale.ROOT);
+  }
+
   boolean optionalBoolean(String key, boolean defaultValue) throws InvalidPayloadException {
     Serializable value = request.payload().get(key);
     if (value == null) {
@@ -58,7 +63,7 @@ final class PayloadReader {
 
   ActionPayloads.LoginPayload login() throws InvalidPayloadException {
     return new ActionPayloads.LoginPayload(
-        requiredString("username", PayloadLimits.MAX_USERNAME_LENGTH),
+        requiredUsername("username"),
         requiredString("displayName", PayloadLimits.MAX_DISPLAY_NAME_LENGTH));
   }
 
@@ -75,7 +80,7 @@ final class PayloadReader {
 
   ActionPayloads.SendDirectPayload sendDirect() throws InvalidPayloadException {
     return new ActionPayloads.SendDirectPayload(
-        requiredString("targetUsername", PayloadLimits.MAX_USERNAME_LENGTH),
+        requiredUsername("targetUsername"),
         requiredString("text", PayloadLimits.MAX_MESSAGE_TEXT_LENGTH));
   }
 
@@ -93,10 +98,17 @@ final class PayloadReader {
           case GROUP -> PayloadLimits.MAX_GROUP_CODE_LENGTH;
         };
     return new ActionPayloads.HistoryPayload(
-        scope, requiredString("target", targetLimit), optionalLimit("limit", 50, maxLimit));
+        scope, requiredTarget(scope, targetLimit), optionalLimit("limit", 50, maxLimit));
   }
 
   ActionPayloads.ListGroupsPayload listGroups() throws InvalidPayloadException {
-    return new ActionPayloads.ListGroupsPayload(optionalBoolean("onlyMine", false));
+    return new ActionPayloads.ListGroupsPayload(optionalBoolean("onlyMine", true));
+  }
+
+  private String requiredTarget(MessageScope scope, int maxLength) throws InvalidPayloadException {
+    if (scope == MessageScope.DIRECT) {
+      return requiredUsername("target");
+    }
+    return requiredString("target", maxLength);
   }
 }

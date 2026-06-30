@@ -37,7 +37,7 @@ public final class ChatClientGateway implements AutoCloseable {
         .thenApply(
             response -> {
               if (response.isOk()) {
-                this.username = username;
+                this.username = ChatPayloads.string(response.payload(), "username");
               }
               return response;
             });
@@ -53,7 +53,12 @@ public final class ChatClientGateway implements AutoCloseable {
   }
 
   public CompletableFuture<List<ClientGroup>> listGroups() {
-    return send(Actions.LIST_GROUPS, Map.of()).thenApply(ChatClientGateway::groupsFromResponse);
+    return listGroups(true);
+  }
+
+  public CompletableFuture<List<ClientGroup>> listGroups(boolean onlyMine) {
+    return send(Actions.LIST_GROUPS, payload("onlyMine", onlyMine))
+        .thenApply(ChatClientGateway::groupsFromResponse);
   }
 
   public CompletableFuture<List<ChatMessage>> history(ConversationTarget target) {

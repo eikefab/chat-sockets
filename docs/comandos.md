@@ -11,11 +11,13 @@ Ao iniciar o cliente, informe:
 - Nome de usuário.
 - Nome público, opcional. Quando vazio, usa o mesmo valor do nome de usuário.
 
+O servidor normaliza o nome de usuário para minúsculas e impede outro login simultâneo com o mesmo nome, mesmo que digitado com maiúsculas/minúsculas diferentes.
+
 Após login aceito, a janela principal exibe contatos, grupos, histórico e campo de envio.
 
 ## Conversas
 
-A barra lateral lista usuários online e grupos existentes.
+A barra lateral lista usuários online e os grupos dos quais você participa.
 
 - Selecione um usuário para carregar o histórico direto.
 - Selecione um grupo para carregar o histórico do grupo.

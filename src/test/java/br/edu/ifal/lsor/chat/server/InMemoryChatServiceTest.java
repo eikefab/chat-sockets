@@ -1,6 +1,8 @@
 package br.edu.ifal.lsor.chat.server;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import br.edu.ifal.lsor.chat.protocol.Actions;
 import br.edu.ifal.lsor.chat.protocol.ClientRequest;
@@ -47,6 +49,35 @@ class InMemoryChatServiceTest {
   }
 
   @Test
+  void loginNormalizesUsernameAndRejectsOnlineDuplicateIgnoringCase() {
+    ChatSession first = new ChatSession();
+    ChatSession second = new ChatSession();
+
+    ServiceResult accepted =
+        service.handle(
+            first,
+            request(
+                Actions.LOGIN,
+                Map.of(
+                    "username", "Maria",
+                    "displayName", "Maria Silva")));
+    ServiceResult duplicate =
+        service.handle(
+            second,
+            request(
+                Actions.LOGIN,
+                Map.of(
+                    "username", "maria",
+                    "displayName", "Outra Maria")));
+
+    assertEquals(Codes.LOGIN_ACCEPTED, accepted.response().code());
+    assertEquals("maria", first.username());
+    assertEquals("maria", accepted.response().payload().get("username"));
+    assertEquals("Maria Silva", accepted.response().payload().get("displayName"));
+    assertEquals(Codes.USERNAME_ALREADY_ONLINE, duplicate.response().code());
+  }
+
+  @Test
   void loginCreatesSessionAndEmitsPresenceToOtherUsers() {
     ChatSession maria = new ChatSession();
     ChatSession joao = new ChatSession();
@@ -90,6 +121,25 @@ class InMemoryChatServiceTest {
     assertEquals(Codes.HISTORY_RETURNED, history.response().code());
     List<?> messages = (List<?>) history.response().payload().get("messages");
     assertEquals(1, messages.size());
+  }
+
+  @Test
+  void directMessageTargetIsCaseInsensitive() {
+    ChatSession maria = new ChatSession();
+    ChatSession joao = new ChatSession();
+    login(maria, "maria");
+    login(joao, "joao");
+
+    ServiceResult result =
+        service.handle(
+            joao,
+            request(
+                Actions.SEND_DIRECT,
+                Map.of(
+                    "targetUsername", "MARIA",
+                    "text", "Oi")));
+
+    assertEquals(Codes.MESSAGE_ACCEPTED, result.response().code());
   }
 
   @Test
@@ -315,6 +365,51 @@ class InMemoryChatServiceTest {
         service.handle(maria, request(Actions.LIST_GROUPS, Map.of("onlyMine", "true")));
 
     assertEquals(Codes.INVALID_PAYLOAD, result.response().code());
+  }
+
+  @Test
+  void listGroupsDefaultsToCurrentUserMembershipOnly() {
+    ChatSession owner = new ChatSession();
+    ChatSession outsider = new ChatSession();
+    login(owner, "owner");
+    login(outsider, "outsider");
+    service.handle(
+        owner,
+        request(
+            Actions.CREATE_GROUP,
+            Map.of(
+                "groupCode", "devs",
+                "displayName", "Devs")));
+
+    ServiceResult result = service.handle(outsider, request(Actions.LIST_GROUPS));
+
+    List<?> groups = (List<?>) result.response().payload().get("groups");
+    assertEquals(Codes.GROUPS_LISTED, result.response().code());
+    assertTrue(groups.isEmpty());
+  }
+
+  @Test
+  void listGroupsCanStillReturnAllGroupsWhenRequested() {
+    ChatSession owner = new ChatSession();
+    ChatSession outsider = new ChatSession();
+    login(owner, "owner");
+    login(outsider, "outsider");
+    service.handle(
+        owner,
+        request(
+            Actions.CREATE_GROUP,
+            Map.of(
+                "groupCode", "devs",
+                "displayName", "Devs")));
+
+    ServiceResult result =
+        service.handle(outsider, request(Actions.LIST_GROUPS, Map.of("onlyMine", false)));
+
+    List<?> groups = (List<?>) result.response().payload().get("groups");
+    Map<?, ?> group = (Map<?, ?>) groups.get(0);
+    assertEquals(Codes.GROUPS_LISTED, result.response().code());
+    assertEquals(1, groups.size());
+    assertFalse((Boolean) group.get("isMember"));
   }
 
   @Test

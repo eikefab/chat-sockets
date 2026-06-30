@@ -32,6 +32,10 @@ public final class ChatClientSession implements AutoCloseable {
     return gateway.listGroups();
   }
 
+  public CompletableFuture<List<ClientGroup>> listGroups(boolean onlyMine) {
+    return gateway.listGroups(onlyMine);
+  }
+
   public CompletableFuture<List<ChatMessage>> history(ConversationTarget target) {
     return gateway.history(target);
   }
