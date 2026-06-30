@@ -387,7 +387,6 @@ final class ChatViewModel implements AutoCloseable {
         () -> {
           if (event instanceof ClientEvent.DirectMessage direct) {
             appendIfCurrent(direct.message());
-            refreshDirectory();
           } else if (event instanceof ClientEvent.GroupMessage group) {
             appendIfCurrent(group.message());
           } else if (event instanceof ClientEvent.UserOnline
