@@ -431,6 +431,77 @@ class ChatServerProtocolIntegrationTest {
   }
 
   @Test
+  void directMessageToOfflineUserIsDeliveredAfterReconnect() throws Exception {
+    TestServerFixture fixture = startTestServer(10);
+
+    BlockingQueue<ServerEvent> bobEvents = new LinkedBlockingQueue<>();
+
+    try (ChatClientSocket alice = new ChatClientSocket("127.0.0.1", fixture.server.getBoundPort());
+        ChatClientSocket bob =
+            new ChatClientSocket("127.0.0.1", fixture.server.getBoundPort(), bobEvents::add)) {
+      alice.openSocket();
+      bob.openSocket();
+
+      ServerResponse aliceLogin =
+          alice
+              .send(
+                  Actions.LOGIN,
+                  Map.<String, Serializable>of(
+                      "username", "alice-offline-delivery",
+                      "displayName", "Alice"))
+              .get(3, TimeUnit.SECONDS);
+      assertEquals(Codes.LOGIN_ACCEPTED, aliceLogin.code());
+
+      ServerResponse bobLogin =
+          bob.send(
+                  Actions.LOGIN,
+                  Map.<String, Serializable>of(
+                      "username", "bob-offline-delivery",
+                      "displayName", "Bob"))
+              .get(3, TimeUnit.SECONDS);
+      assertEquals(Codes.LOGIN_ACCEPTED, bobLogin.code());
+
+      ServerResponse bobLogout =
+          bob.send(Actions.LOGOUT, Map.<String, Serializable>of()).get(3, TimeUnit.SECONDS);
+      assertEquals(Codes.LOGOUT_ACCEPTED, bobLogout.code());
+
+      ServerResponse queued =
+          alice
+              .send(
+                  Actions.SEND_DIRECT,
+                  Map.<String, Serializable>of(
+                      "targetUsername", "bob-offline-delivery",
+                      "text", "Chegou depois"))
+              .get(3, TimeUnit.SECONDS);
+      assertEquals(Codes.MESSAGE_ACCEPTED, queued.code());
+      assertEquals(Boolean.FALSE, queued.payload().get("deliveredToOnline"));
+
+      try (ChatClientSocket bobReconnect =
+          new ChatClientSocket("127.0.0.1", fixture.server.getBoundPort(), bobEvents::add)) {
+        bobReconnect.openSocket();
+
+        ServerResponse reconnectLogin =
+            bobReconnect
+                .send(
+                    Actions.LOGIN,
+                    Map.<String, Serializable>of(
+                        "username", "bob-offline-delivery",
+                        "displayName", "Bob"))
+                .get(3, TimeUnit.SECONDS);
+        assertEquals(Codes.LOGIN_ACCEPTED, reconnectLogin.code());
+
+        ServerEvent directEvent = pollEvent(bobEvents, Events.DIRECT_MESSAGE);
+        assertNotNull(directEvent);
+        assertEquals("alice-offline-delivery", directEvent.payload().get("fromUsername"));
+        assertEquals("Chegou depois", directEvent.payload().get("text"));
+        assertEquals(queued.payload().get("messageId"), directEvent.payload().get("messageId"));
+      }
+    } finally {
+      stopTestServer(fixture);
+    }
+  }
+
+  @Test
   void nonProtocolClassIsRejectedByInputFilter() throws Exception {
     assertServerRejectsObject(BigInteger.valueOf(42));
   }

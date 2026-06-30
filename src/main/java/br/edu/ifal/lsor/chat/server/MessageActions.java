@@ -46,26 +46,31 @@ final class MessageActions {
           ServerResponse.error(
               request.requestId(), Codes.USER_NOT_FOUND, "Usuário não encontrado."));
     }
-    if (!state.isOnline(targetUsername)) {
-      return new ServiceResult(
-          ServerResponse.error(request.requestId(), Codes.USER_OFFLINE, "Usuário está offline."));
-    }
     MessageRecord message =
         MessageRecord.direct(
             UUID.randomUUID(), session.username(), targetUsername, text, Instant.now());
     state.addDirectMessage(message);
+    boolean deliveredToOnline = state.isOnline(targetUsername);
+    if (!deliveredToOnline) {
+      state.enqueuePendingDirectMessage(targetUsername, message);
+    }
     return new ServiceResult(
         ServerResponse.ok(
             request.requestId(),
             Codes.MESSAGE_ACCEPTED,
             "Mensagem aceita.",
-            Payloads.messageAccepted(message.messageId(), message.createdAt(), true)),
-        List.of(
-            events.toUsers(
-                Events.DIRECT_MESSAGE,
-                Payloads.directMessageEvent(
-                    message.messageId(), session.username(), text, message.createdAt()),
-                Set.of(targetUsername))),
+            Payloads.messageAccepted(message.messageId(), message.createdAt(), deliveredToOnline)),
+        deliveredToOnline
+            ? List.of(
+                events.toUsers(
+                    Events.DIRECT_MESSAGE,
+                    Payloads.directMessageEvent(
+                        message.messageId(),
+                        message.fromUsername(),
+                        message.text(),
+                        message.createdAt()),
+                    Set.of(targetUsername)))
+            : List.of(),
         false);
   }
 

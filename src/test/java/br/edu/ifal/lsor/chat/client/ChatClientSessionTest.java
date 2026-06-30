@@ -137,7 +137,7 @@ class ChatClientSessionTest {
   }
 
   @Test
-  void directMessageToOfflineUserReturnsError() throws Exception {
+  void directMessageToUnknownUserReturnsError() throws Exception {
     TestServerFixture fixture = startTestServer(10);
 
     try (ChatClientSession alice =

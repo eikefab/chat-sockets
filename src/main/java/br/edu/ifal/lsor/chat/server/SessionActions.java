@@ -3,11 +3,14 @@ package br.edu.ifal.lsor.chat.server;
 import br.edu.ifal.lsor.chat.protocol.Actions;
 import br.edu.ifal.lsor.chat.protocol.ClientRequest;
 import br.edu.ifal.lsor.chat.protocol.Codes;
+import br.edu.ifal.lsor.chat.protocol.Events;
 import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 final class SessionActions {
 
@@ -49,10 +52,20 @@ final class SessionActions {
     UserRecord user = state.saveUser(username, displayName);
     session.authenticate(user.memberId(), user.username(), user.displayName());
     state.connect(user, session);
+    List<OutboundEvent> outboundEvents = new ArrayList<>();
+    outboundEvents.add(events.userOnline(user));
+    for (MessageRecord message : state.drainPendingDirectMessages(user.username())) {
+      outboundEvents.add(
+          events.toUsers(
+              Events.DIRECT_MESSAGE,
+              Payloads.directMessageEvent(
+                  message.messageId(), message.fromUsername(), message.text(), message.createdAt()),
+              Set.of(user.username())));
+    }
     return new ServiceResult(
         ServerResponse.ok(
             request.requestId(), Codes.LOGIN_ACCEPTED, "Login realizado.", Payloads.login(user)),
-        List.of(events.userOnline(user)),
+        outboundEvents,
         false);
   }
 

@@ -143,7 +143,7 @@ class InMemoryChatServiceTest {
   }
 
   @Test
-  void directMessageToOfflineExistingUserReturnsUserOffline() {
+  void directMessageToOfflineExistingUserIsAcceptedAndDeliveredOnLogin() {
     ChatSession maria = new ChatSession();
     ChatSession joao = new ChatSession();
     login(maria, "maria");
@@ -159,7 +159,105 @@ class InMemoryChatServiceTest {
                     "targetUsername", "joao",
                     "text", "Oi")));
 
-    assertEquals(Codes.USER_OFFLINE, result.response().code());
+    assertEquals(Codes.MESSAGE_ACCEPTED, result.response().code());
+    assertEquals(Boolean.FALSE, result.response().payload().get("deliveredToOnline"));
+    assertTrue(result.events().isEmpty());
+
+    ChatSession reconnectedJoao = new ChatSession();
+    ServiceResult loginResult = login(reconnectedJoao, "joao");
+    List<OutboundEvent> directEvents = directEvents(loginResult);
+
+    assertEquals(1, directEvents.size());
+    assertEquals(List.of("joao"), List.copyOf(directEvents.get(0).targetUsernames()));
+    assertEquals(Events.DIRECT_MESSAGE, directEvents.get(0).event().eventType());
+    assertEquals("maria", directEvents.get(0).event().payload().get("fromUsername"));
+    assertEquals("Oi", directEvents.get(0).event().payload().get("text"));
+    assertEquals(
+        result.response().payload().get("messageId"),
+        directEvents.get(0).event().payload().get("messageId"));
+  }
+
+  @Test
+  void offlineDirectMessagesAreDrainedOnceInSendOrder() {
+    ChatSession maria = new ChatSession();
+    ChatSession joao = new ChatSession();
+    login(maria, "maria");
+    login(joao, "joao");
+    service.handle(joao, request(Actions.LOGOUT));
+
+    service.handle(
+        maria, request(Actions.SEND_DIRECT, Map.of("targetUsername", "joao", "text", "um")));
+    service.handle(
+        maria, request(Actions.SEND_DIRECT, Map.of("targetUsername", "joao", "text", "dois")));
+
+    ChatSession reconnectedJoao = new ChatSession();
+    ServiceResult firstLogin = login(reconnectedJoao, "joao");
+    List<OutboundEvent> firstDelivery = directEvents(firstLogin);
+
+    assertEquals(2, firstDelivery.size());
+    assertEquals(
+        List.of("um", "dois"),
+        firstDelivery.stream().map(event -> event.event().payload().get("text")).toList());
+
+    service.handle(reconnectedJoao, request(Actions.LOGOUT));
+    ChatSession joaoAgain = new ChatSession();
+    ServiceResult secondLogin = login(joaoAgain, "joao");
+
+    assertTrue(directEvents(secondLogin).isEmpty());
+  }
+
+  @Test
+  void directMessageToOfflineUserIsReturnedInHistory() {
+    ChatSession maria = new ChatSession();
+    ChatSession joao = new ChatSession();
+    login(maria, "maria");
+    login(joao, "joao");
+    service.handle(joao, request(Actions.LOGOUT));
+
+    service.handle(
+        maria,
+        request(
+            Actions.SEND_DIRECT,
+            Map.of(
+                "targetUsername", "joao",
+                "text", "Oi offline")));
+
+    ServerResponse response =
+        service
+            .handle(
+                maria,
+                request(
+                    Actions.GET_HISTORY,
+                    Map.of(
+                        "scope", "DIRECT",
+                        "target", "joao")))
+            .response();
+
+    List<?> messages = (List<?>) response.payload().get("messages");
+    assertEquals(Codes.HISTORY_RETURNED, response.code());
+    assertEquals(1, messages.size());
+    Map<?, ?> message = (Map<?, ?>) messages.get(0);
+    assertEquals("maria", message.get("fromUsername"));
+    assertEquals("joao", message.get("toUsername"));
+    assertEquals("Oi offline", message.get("text"));
+  }
+
+  @Test
+  void directMessageToUnknownUserReturnsUserNotFound() {
+    ChatSession maria = new ChatSession();
+    login(maria, "maria");
+
+    ServiceResult result =
+        service.handle(
+            maria,
+            request(
+                Actions.SEND_DIRECT,
+                Map.of(
+                    "targetUsername", "joao",
+                    "text", "Oi")));
+
+    assertEquals(Codes.USER_NOT_FOUND, result.response().code());
+    assertTrue(result.events().isEmpty());
   }
 
   @Test
@@ -530,5 +628,11 @@ class InMemoryChatServiceTest {
   private ClientRequest request(String action, Map<String, ? extends Serializable> payload) {
     return new ClientRequest(
         "1.0", UUID.randomUUID(), action, java.time.Instant.now(), Map.copyOf(payload));
+  }
+
+  private static List<OutboundEvent> directEvents(ServiceResult result) {
+    return result.events().stream()
+        .filter(event -> Events.DIRECT_MESSAGE.equals(event.event().eventType()))
+        .toList();
   }
 }

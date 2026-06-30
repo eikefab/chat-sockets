@@ -1,7 +1,9 @@
 package br.edu.ifal.lsor.chat.server;
 
 import br.edu.ifal.lsor.chat.protocol.Codes;
+import java.util.ArrayDeque;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,6 +16,7 @@ final class ChatState {
   private final Map<String, UserRecord> users = new HashMap<>();
   private final Map<String, ChatSession> onlineSessions = new HashMap<>();
   private final Map<String, GroupRecord> groups = new HashMap<>();
+  private final Map<String, Deque<MessageRecord>> pendingDirectMessages = new HashMap<>();
   private final MessageHistory directHistory = new MessageHistory();
 
   boolean isOnline(String username) {
@@ -94,6 +97,15 @@ final class ChatState {
 
   void addDirectMessage(MessageRecord message) {
     directHistory.add(message);
+  }
+
+  void enqueuePendingDirectMessage(String username, MessageRecord message) {
+    pendingDirectMessages.computeIfAbsent(username, key -> new ArrayDeque<>()).addLast(message);
+  }
+
+  List<MessageRecord> drainPendingDirectMessages(String username) {
+    Deque<MessageRecord> messages = pendingDirectMessages.remove(username);
+    return messages == null ? List.of() : List.copyOf(messages);
   }
 
   List<MessageRecord> directHistoryBetween(String firstUsername, String secondUsername) {

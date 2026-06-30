@@ -21,7 +21,7 @@ Versões anteriores usavam `ChatMessage` e respostas em `String`. Este protocolo
 | Sessão | Associação entre um socket conectado e um usuário autenticado via `LOGIN`. |
 | Usuário | Participante identificado por `username`, `displayName` e um `memberId` interno. |
 | Grupo | Sala identificada por `groupCode`, com nome público, dono e membros. |
-| Mensagem direta | Mensagem privada de um usuário para outro usuário online. |
+| Mensagem direta | Mensagem privada de um usuário para outro usuário conhecido, online ou offline. |
 | Mensagem de grupo | Mensagem enviada por um membro para todos os membros online de um grupo. |
 | Comando | Ação tipada enviada pelo cliente, como `CREATE_GROUP` ou `SEND_DIRECT`. |
 | Evento | Notificação assíncrona enviada pelo servidor, como `DIRECT_MESSAGE` ou `USER_ONLINE`. |
@@ -121,8 +121,8 @@ ServerResponse {
   protocolVersion = "1.0",
   requestId = "1ccae62c-14df-4c2e-9ef3-31d6b2f56065",
   status = "ERROR",
-  code = "USER_OFFLINE",
-  message = "O usuário de destino não está online.",
+  code = "USER_NOT_FOUND",
+  message = "Usuário não encontrado.",
   payload = {},
   respondedAt = "2026-06-28T12:00:01Z"
 }
@@ -480,7 +480,7 @@ sequenceDiagram
 
 ### SEND_DIRECT
 
-Envia mensagem direta 1:1 para outro usuário online.
+Envia mensagem direta 1:1 para outro usuário conhecido. Se o destinatário estiver offline, a mensagem fica pendente em memória e será entregue quando ele fizer login novamente.
 
 Payload:
 
@@ -495,11 +495,11 @@ Resposta `OK`:
 | --- | --- | --- |
 | `messageId` | `UUID` | Identificador da mensagem criada pelo servidor. |
 | `createdAt` | `Instant` | Momento de registro da mensagem. |
-| `deliveredToOnline` | `Boolean` | Sempre `true` quando a resposta for `OK` nesta v1. |
+| `deliveredToOnline` | `Boolean` | `true` quando entregue imediatamente; `false` quando ficou pendente para o próximo login do destinatário. |
 
-Erros possíveis: `AUTH_REQUIRED`, `INVALID_PAYLOAD`, `USER_NOT_FOUND`, `USER_OFFLINE`, `CANNOT_MESSAGE_SELF`.
+Erros possíveis: `AUTH_REQUIRED`, `INVALID_PAYLOAD`, `USER_NOT_FOUND`, `CANNOT_MESSAGE_SELF`.
 
-Eventos gerados: `DIRECT_MESSAGE` para o destinatário.
+Eventos gerados: `DIRECT_MESSAGE` para o destinatário imediatamente se ele estiver online, ou após o próximo `LOGIN` se ele estiver offline.
 
 ```mermaid
 sequenceDiagram
@@ -510,8 +510,14 @@ sequenceDiagram
   alt destino online
     S-->>A: ServerResponse OK MESSAGE_ACCEPTED
     S-->>B: ServerEvent DIRECT_MESSAGE
-  else destino offline
-    S-->>A: ServerResponse ERROR USER_OFFLINE
+  else destino offline conhecido
+    S-->>A: ServerResponse OK MESSAGE_ACCEPTED
+    Note over S: mensagem pendente em memória
+    B->>S: ClientRequest LOGIN
+    S-->>B: ServerResponse OK LOGIN_ACCEPTED
+    S-->>B: ServerEvent DIRECT_MESSAGE
+  else destino desconhecido
+    S-->>A: ServerResponse ERROR USER_NOT_FOUND
   end
 ```
 
@@ -699,7 +705,7 @@ Payload: `groupCode`, `username`, `displayName`.
 | `UNKNOWN_ACTION` | Ação não reconhecida. |
 | `USERNAME_ALREADY_ONLINE` | Nome de usuário já conectado. |
 | `USER_NOT_FOUND` | Usuário nunca registrado na memória do servidor. |
-| `USER_OFFLINE` | Usuário existe, mas não está online. |
+| `USER_OFFLINE` | Reservado para regras que rejeitem usuário offline; `SEND_DIRECT` não usa este erro para usuários conhecidos. |
 | `CANNOT_MESSAGE_SELF` | Usuário tentou enviar mensagem direta para si mesmo. |
 | `GROUP_ALREADY_EXISTS` | Já existe grupo com o mesmo `groupCode`. |
 | `GROUP_NOT_FOUND` | Grupo não existe. |
@@ -712,20 +718,20 @@ Payload: `groupCode`, `username`, `displayName`.
 ## Regras de roteamento
 
 - `ServerResponse` sempre volta apenas para o cliente que enviou o `ClientRequest`.
-- `DIRECT_MESSAGE` vai apenas para o destinatário online.
+- `DIRECT_MESSAGE` vai apenas para o destinatário; se ele estiver offline, o evento fica pendente até o próximo login.
 - `GROUP_MESSAGE` vai para membros online do grupo.
 - Eventos de presença (`USER_ONLINE`, `USER_OFFLINE`) vão para todos os usuários online.
 - Eventos `GROUP_CREATED`, `GROUP_RENAMED` e `GROUP_DELETED` vão para todos os usuários online.
 - Eventos `GROUP_MEMBER_JOINED` e `GROUP_MEMBER_LEFT` vão apenas para membros online do grupo.
-- O servidor não garante entrega para usuários offline nesta v1.
+- O servidor entrega mensagens diretas pendentes somente enquanto o estado em memória existir.
 
 ## Regras de histórico
 
 - O histórico é mantido apenas em memória.
 - Reiniciar o servidor apaga usuários, grupos e mensagens.
-- Mensagens diretas só são aceitas se o destinatário estiver online.
+- Mensagens diretas são aceitas para destinatários conhecidos, mesmo offline.
 - Mensagens de grupo são registradas mesmo que nem todos os membros estejam online.
-- Não existe fila offline.
+- Existe fila offline em memória apenas para mensagens diretas; reiniciar o servidor apaga essa fila.
 - `GET_HISTORY` retorna no máximo `limit` mensagens.
 - Para grupos, somente membros atuais podem consultar o histórico.
 
@@ -788,7 +794,7 @@ sequenceDiagram
 - O servidor rejeita qualquer ação diferente de `LOGIN` antes da autenticação.
 - Toda requisição recebe exatamente uma `ServerResponse` com o mesmo `requestId`, exceto em queda abrupta de conexão.
 - Eventos assíncronos usam `ServerEvent` e não substituem respostas.
-- Mensagem direta para usuário offline retorna `USER_OFFLINE`.
+- Mensagem direta para usuário offline conhecido retorna `MESSAGE_ACCEPTED` com `deliveredToOnline=false` e é entregue no próximo login.
 - Mensagem de grupo exige que o autor seja membro.
 - Criar, renomear e excluir grupo respeitam a regra de dono.
 - Histórico de grupo não é retornado para não membros.
