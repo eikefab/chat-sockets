@@ -1,12 +1,5 @@
 package br.edu.ifal.lsor.chat.socket;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import br.edu.ifal.lsor.chat.protocol.ClientRequest;
-import br.edu.ifal.lsor.chat.protocol.Protocol;
-import br.edu.ifal.lsor.chat.protocol.ServerEvent;
-import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InvalidClassException;
@@ -18,7 +11,15 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
+
+import br.edu.ifal.lsor.chat.protocol.ClientRequest;
+import br.edu.ifal.lsor.chat.protocol.Protocol;
+import br.edu.ifal.lsor.chat.protocol.ServerEvent;
+import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 
 class ChatObjectInputFiltersTest {
 
@@ -108,6 +109,42 @@ class ChatObjectInputFiltersTest {
     byte[] serialized = serialize(request);
 
     assertThrows(InvalidClassException.class, () -> readFiltered(serialized));
+  }
+
+  @Test
+  void acceptsManyMessagesOverASingleLongLivedStream() throws Exception {
+    int messageCount = 500;
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
+      for (int i = 0; i < messageCount; i++) {
+        ChatObjectStreams.writeAndReset(
+            output,
+            ServerEvent.of(
+                "DIRECT_MESSAGE",
+                Map.<String, Serializable>of(
+                    "messageId",
+                    UUID.randomUUID(),
+                    "fromUsername",
+                    "maria",
+                    "text",
+                    "Mensagem " + i,
+                    "createdAt",
+                    Instant.now())));
+      }
+    }
+
+    int decoded = 0;
+    try (ObjectInputStream input =
+        new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+      input.setObjectInputFilter(ChatObjectInputFilters.protocolFilter());
+      for (int i = 0; i < messageCount; i++) {
+        Object object = input.readObject();
+        assertEquals(ServerEvent.class, object.getClass());
+        decoded++;
+      }
+    }
+
+    assertEquals(messageCount, decoded);
   }
 
   private static <T> T readFiltered(Serializable object, Class<T> expectedType) throws Exception {
