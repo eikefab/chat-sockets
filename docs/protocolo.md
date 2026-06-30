@@ -295,7 +295,7 @@ Resposta `OK`:
 
 | Campo | Tipo | Descrição |
 | --- | --- | --- |
-| `groups` | `List<Map>` | Lista com `groupId`, `groupCode`, `displayName`, `ownerUsername`, `memberCount` e `isMember`. |
+| `groups` | `List<Map>` | Lista com `groupId`, `groupCode`, `displayName`, `ownerUsername`, `memberCount`, `isMember` e `memberUsernames`. |
 
 Erros possíveis: `AUTH_REQUIRED`.
 

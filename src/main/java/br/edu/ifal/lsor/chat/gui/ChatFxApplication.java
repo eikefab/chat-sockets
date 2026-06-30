@@ -2,6 +2,7 @@ package br.edu.ifal.lsor.chat.gui;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 public final class ChatFxApplication extends Application {
@@ -12,6 +13,7 @@ public final class ChatFxApplication extends Application {
   private Stage stage;
   private ChatViewModel model;
   private LoginView loginView;
+  private ClientConfig config;
 
   public static void launchClient(String host, int port) {
     launch(ChatFxApplication.class, HOST_PARAM + host, PORT_PARAM + port);
@@ -20,7 +22,8 @@ public final class ChatFxApplication extends Application {
   @Override
   public void start(Stage primaryStage) {
     this.stage = primaryStage;
-    ClientConfig config = configFromParameters();
+    loadInterFonts();
+    this.config = configFromParameters();
     stage.setTitle("Chat IFAL");
     stage.setMinWidth(920);
     stage.setMinHeight(620);
@@ -70,8 +73,19 @@ public final class ChatFxApplication extends Application {
   }
 
   private void showChat() {
-    ChatMainView view = new ChatMainView(model);
+    ChatMainView view = new ChatMainView(model, this::backToLogin);
     setScene(view.root(), 1040, 680);
+  }
+
+  private void backToLogin() {
+    if (model != null) {
+      try {
+        model.close();
+      } catch (Exception ignored) {
+      }
+      model = null;
+    }
+    showLogin(config);
   }
 
   private void setScene(javafx.scene.Parent root, int width, int height) {
@@ -95,6 +109,18 @@ public final class ChatFxApplication extends Application {
 
   private static String stylesheet() {
     return ChatFxApplication.class.getResource("/chat-client.css").toExternalForm();
+  }
+
+  private static void loadInterFonts() {
+    loadFont("/fonts/Inter-Regular.ttf");
+    loadFont("/fonts/Inter-SemiBold.ttf");
+  }
+
+  private static void loadFont(String resource) {
+    java.net.URL url = ChatFxApplication.class.getResource(resource);
+    if (url != null) {
+      Font.loadFont(url.toExternalForm(), 14);
+    }
   }
 
   private record ClientConfig(String host, int port) {}

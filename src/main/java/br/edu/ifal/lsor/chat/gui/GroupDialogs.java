@@ -16,6 +16,7 @@ final class GroupDialogs {
   static Optional<GroupInput> createGroup() {
     Dialog<GroupInput> dialog = new Dialog<>();
     dialog.setTitle("Criar grupo");
+    dialog.setHeaderText("Criar grupo");
     dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 
     TextField codeField = new TextField();
@@ -56,6 +57,7 @@ final class GroupDialogs {
             ButtonType.CANCEL,
             ButtonType.OK);
     confirm.setHeaderText("Excluir grupo");
+    confirm.getDialogPane().setGraphic(Icons.trash());
     return confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
   }
 

@@ -2,6 +2,7 @@ package br.edu.ifal.lsor.chat.gui;
 
 import br.edu.ifal.lsor.chat.client.ChatClientGateway;
 import br.edu.ifal.lsor.chat.client.ChatMessage;
+import br.edu.ifal.lsor.chat.client.ChatPayloads;
 import br.edu.ifal.lsor.chat.client.ClientEvent;
 import br.edu.ifal.lsor.chat.client.ClientGroup;
 import br.edu.ifal.lsor.chat.client.ClientUser;
@@ -11,9 +12,14 @@ import br.edu.ifal.lsor.chat.client.GroupEventKind;
 import br.edu.ifal.lsor.chat.protocol.ServerResponse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -34,13 +40,35 @@ final class ChatViewModel implements AutoCloseable {
   private final StringProperty title = new SimpleStringProperty("Selecione uma conversa");
   private final StringProperty status = new SimpleStringProperty();
   private final BooleanProperty sending = new SimpleBooleanProperty(false);
+  private final ObjectProperty<SelectedGroupDetails> selectedGroupDetails =
+      new SimpleObjectProperty<>(SelectedGroupDetails.none());
+  private final BooleanBinding selectedGroup =
+      Bindings.createBooleanBinding(
+          () -> selectedGroupDetails.get().present(), selectedGroupDetails);
+  private final BooleanBinding selectedGroupOwned =
+      Bindings.createBooleanBinding(() -> selectedGroupDetails.get().owned(), selectedGroupDetails);
+  private final BooleanBinding selectedGroupMember =
+      Bindings.createBooleanBinding(
+          () -> selectedGroupDetails.get().member(), selectedGroupDetails);
+  private final BooleanBinding canSendMessage =
+      Bindings.createBooleanBinding(
+          this::hasWritableSelection, selectedConversation, selectedGroupDetails);
+  private final StringBinding groupMembers =
+      Bindings.createStringBinding(
+          () -> selectedGroupDetails.get().memberSummary(), selectedGroupDetails);
   private final AtomicInteger directoryVersion = new AtomicInteger();
   private final List<ClientUser> users = new ArrayList<>();
   private final List<ClientGroup> groups = new ArrayList<>();
 
   ChatViewModel(String host, int port) {
     this.client = new ChatClientGateway(host, port, this::handleEvent);
-    selectedConversation.addListener((observable, oldValue, target) -> loadHistory(target));
+    selectedConversation.addListener(
+        (observable, oldValue, target) -> {
+          updateSelectedGroupDetails();
+          if (!Objects.equals(target, oldValue)) {
+            loadHistory(target);
+          }
+        });
   }
 
   ObservableList<ConversationTarget> conversations() {
@@ -65,6 +93,30 @@ final class ChatViewModel implements AutoCloseable {
 
   BooleanProperty sendingProperty() {
     return sending;
+  }
+
+  BooleanBinding selectedGroupOwnedProperty() {
+    return selectedGroupOwned;
+  }
+
+  BooleanBinding selectedGroupMemberProperty() {
+    return selectedGroupMember;
+  }
+
+  BooleanBinding hasSelectedGroupProperty() {
+    return selectedGroup;
+  }
+
+  BooleanBinding canSendMessageProperty() {
+    return canSendMessage;
+  }
+
+  StringBinding groupMembersProperty() {
+    return groupMembers;
+  }
+
+  boolean isUserOnline(String username) {
+    return users.stream().anyMatch(user -> user.username().equals(username) && user.online());
   }
 
   void selectConversation(ConversationTarget target) {
@@ -134,6 +186,10 @@ final class ChatViewModel implements AutoCloseable {
     if (target == null || text.isEmpty()) {
       return;
     }
+    if (!canSendTo(target)) {
+      status.set("Entre no grupo para enviar mensagens.");
+      return;
+    }
     sending.set(true);
     client
         .sendMessage(target, text)
@@ -150,7 +206,18 @@ final class ChatViewModel implements AutoCloseable {
                         status.set("Erro: " + response.message());
                         return;
                       }
-                      loadHistory(target);
+                      if (target.kind() == ConversationKind.DIRECT) {
+                        java.time.Instant createdAt =
+                            ChatPayloads.instant(response.payload(), "createdAt");
+                        appendIfCurrent(
+                            new ChatMessage(
+                                target.kind(),
+                                target.id(),
+                                client.username(),
+                                text,
+                                createdAt,
+                                true));
+                      }
                     }));
   }
 
@@ -162,22 +229,12 @@ final class ChatViewModel implements AutoCloseable {
     runGroupAction(client.joinGroup(groupCode));
   }
 
-  void renameSelectedGroup(String displayName) {
-    selectedGroupCode()
-        .ifPresent(groupCode -> runGroupAction(client.renameGroup(groupCode, displayName)));
-  }
-
   void leaveSelectedGroup() {
     selectedGroupCode().ifPresent(groupCode -> runGroupAction(client.leaveGroup(groupCode)));
   }
 
   void deleteSelectedGroup() {
     selectedGroupCode().ifPresent(groupCode -> runGroupAction(client.deleteGroup(groupCode)));
-  }
-
-  boolean hasSelectedGroup() {
-    ConversationTarget target = selectedConversation.get();
-    return target != null && target.kind() == ConversationKind.GROUP;
   }
 
   private void loadHistory(ConversationTarget target) {
@@ -187,6 +244,10 @@ final class ChatViewModel implements AutoCloseable {
       return;
     }
     title.set(target.label());
+    if (!canLoadHistory(target)) {
+      status.set("Entre no grupo para ver o histórico.");
+      return;
+    }
     status.set("Carregando histórico...");
     client
         .history(target)
@@ -241,6 +302,7 @@ final class ChatViewModel implements AutoCloseable {
             .toList());
     conversations.addAll(groups.stream().map(ConversationTarget::group).toList());
     reselect(selected);
+    updateSelectedGroupDetails();
   }
 
   private void reselect(ConversationTarget selected) {
@@ -250,7 +312,74 @@ final class ChatViewModel implements AutoCloseable {
     conversations.stream()
         .filter(target -> target.kind() == selected.kind() && target.id().equals(selected.id()))
         .findFirst()
-        .ifPresent(selectedConversation::set);
+        .ifPresent(
+            target -> {
+              if (!Objects.equals(target, selectedConversation.get())) {
+                selectedConversation.set(target);
+              }
+            });
+  }
+
+  private void updateSelectedGroupDetails() {
+    ConversationTarget target = selectedConversation.get();
+    selectedGroupDetails.set(selectedGroupDetailsFor(target));
+  }
+
+  private SelectedGroupDetails selectedGroupDetailsFor(ConversationTarget target) {
+    if (target == null || target.kind() != ConversationKind.GROUP) {
+      return SelectedGroupDetails.none();
+    }
+    return groups.stream()
+        .filter(group -> group.groupCode().equals(target.id()))
+        .findFirst()
+        .map(this::selectedGroupDetails)
+        .orElseGet(SelectedGroupDetails::none);
+  }
+
+  private SelectedGroupDetails selectedGroupDetails(ClientGroup group) {
+    return new SelectedGroupDetails(
+        true,
+        group.ownerUsername().equals(client.username()),
+        group.member(),
+        formatGroupMembers(group));
+  }
+
+  private boolean hasWritableSelection() {
+    ConversationTarget target = selectedConversation.get();
+    return target != null && canSendTo(target);
+  }
+
+  private boolean canSendTo(ConversationTarget target) {
+    return target.kind() == ConversationKind.DIRECT || selectedGroupDetails.get().member();
+  }
+
+  private boolean canLoadHistory(ConversationTarget target) {
+    return target.kind() == ConversationKind.DIRECT || selectedGroupDetails.get().member();
+  }
+
+  private String formatGroupMembers(ClientGroup group) {
+    List<String> memberUsernames = group.memberUsernames();
+    long onlineCount = memberUsernames.stream().filter(this::isUserOnline).count();
+    String names =
+        memberUsernames.stream().map(this::displayNameForMember).collect(Collectors.joining(", "));
+    return memberUsernames.size()
+        + " membro"
+        + (memberUsernames.size() == 1 ? "" : "s")
+        + " ("
+        + onlineCount
+        + " online)"
+        + (names.isEmpty() ? "" : " - " + names);
+  }
+
+  private String displayNameForMember(String username) {
+    if (username.equals(client.username())) {
+      return "Você";
+    }
+    return users.stream()
+        .filter(user -> user.username().equals(username))
+        .findFirst()
+        .map(ClientUser::displayName)
+        .orElse(username);
   }
 
   private void handleEvent(ClientEvent event) {
@@ -307,4 +436,12 @@ final class ChatViewModel implements AutoCloseable {
   }
 
   private record DirectorySnapshot(List<ClientUser> users, List<ClientGroup> groups) {}
+
+  private record SelectedGroupDetails(
+      boolean present, boolean owned, boolean member, String memberSummary) {
+
+    static SelectedGroupDetails none() {
+      return new SelectedGroupDetails(false, false, false, "");
+    }
+  }
 }

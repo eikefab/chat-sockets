@@ -27,6 +27,8 @@ final class LoginView {
     this.portField = new TextField(String.valueOf(port));
     configureFields();
     connectButton.setOnAction(event -> submitAction.run());
+    connectButton.getStyleClass().add("primary");
+    connectButton.setGraphic(Icons.login());
     displayNameField.setOnKeyPressed(
         event -> {
           if (event.getCode() == KeyCode.ENTER) {
@@ -51,6 +53,10 @@ final class LoginView {
 
   void setStatus(String status) {
     statusLabel.setText(status);
+    statusLabel.getStyleClass().remove("error");
+    if (!status.isEmpty()) {
+      statusLabel.getStyleClass().add("error");
+    }
   }
 
   void setBusy(boolean busy) {
@@ -61,28 +67,47 @@ final class LoginView {
     hostField.setPromptText("Host");
     portField.setPromptText("Porta");
     usernameField.setPromptText("Nome de usuário");
-    displayNameField.setPromptText("Nome público");
-    portField.setMaxWidth(100);
+    displayNameField.setPromptText("Nome público (opcional)");
+    portField.setMaxWidth(120);
     statusLabel.getStyleClass().add("status");
+    statusLabel.setMinHeight(18);
   }
 
   private VBox form() {
-    HBox serverFields = new HBox(8, hostField, portField);
+    Label brand = new Label("Chat IFAL");
+    brand.getStyleClass().add("login-brand");
+    brand.setGraphic(Icons.chat());
+    brand.setGraphicTextGap(10);
+    Label sub = new Label("Conecte-se ao servidor para iniciar uma conversa.");
+    sub.getStyleClass().add("login-sub");
+
+    VBox serverFields = new VBox(6, fieldLabel("Servidor"), new HBox(8, hostField, portField));
     HBox.setHgrow(hostField, Priority.ALWAYS);
+    VBox usernameFields = new VBox(6, fieldLabel("Usuário"), usernameField);
+    VBox displayFields = new VBox(6, fieldLabel("Nome público"), displayNameField);
+
     VBox form =
         new VBox(
-            12,
-            new Label("Chat IFAL"),
+            18,
+            new VBox(2, brand, sub),
             serverFields,
-            usernameField,
-            displayNameField,
+            usernameFields,
+            displayFields,
             connectButton,
             statusLabel);
-    form.setAlignment(Pos.CENTER);
-    form.setPadding(new Insets(32));
-    form.setMaxWidth(360);
-    form.getStyleClass().add("login");
+    form.setAlignment(Pos.TOP_CENTER);
+    form.setMaxWidth(380);
+    form.getStyleClass().add("login-card");
+    BorderPane.setMargin(form, new Insets(40));
+    BorderPane.setAlignment(form, Pos.CENTER);
     return form;
+  }
+
+  private static Label fieldLabel(String text) {
+    Label label = new Label(text);
+    label.getStyleClass().add("field-label");
+    label.setPadding(new Insets(0, 0, 0, 2));
+    return label;
   }
 
   record LoginRequest(String host, String port, String username, String displayName) {

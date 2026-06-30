@@ -170,6 +170,36 @@ class InMemoryChatServiceTest {
   }
 
   @Test
+  void listGroupsIncludesMemberUsernamesInJoinOrder() {
+    ChatSession owner = new ChatSession();
+    ChatSession guest = new ChatSession();
+    login(owner, "owner");
+    login(guest, "guest");
+    service.handle(
+        owner,
+        request(
+            Actions.CREATE_GROUP,
+            Map.of(
+                "groupCode", "devs",
+                "displayName", "Devs")));
+    service.handle(guest, request(Actions.JOIN_GROUP, Map.of("groupCode", "devs")));
+
+    ServerResponse response = service.handle(guest, request(Actions.LIST_GROUPS)).response();
+
+    List<?> groups = (List<?>) response.payload().get("groups");
+    Map<?, ?> devs =
+        groups.stream()
+            .map(Map.class::cast)
+            .filter(group -> "devs".equals(group.get("groupCode")))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(Codes.GROUPS_LISTED, response.code());
+    assertEquals(2, devs.get("memberCount"));
+    assertEquals(Boolean.TRUE, devs.get("isMember"));
+    assertEquals(List.of("owner", "guest"), devs.get("memberUsernames"));
+  }
+
+  @Test
   void groupHistoryIsBlockedForNonMembers() {
     ChatSession owner = new ChatSession();
     ChatSession outsider = new ChatSession();

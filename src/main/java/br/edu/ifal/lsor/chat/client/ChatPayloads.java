@@ -80,6 +80,24 @@ public final class ChatPayloads {
     throw new IllegalArgumentException("Payload com campo inteiro inválido: " + key);
   }
 
+  public static List<String> stringList(Map<String, Serializable> payload, String key) {
+    Serializable value = payload.get(key);
+    if (value == null) {
+      return List.of();
+    }
+    if (!(value instanceof List<?> list)) {
+      throw new IllegalArgumentException("Payload com lista textual inválida: " + key);
+    }
+    List<String> result = new ArrayList<>();
+    for (Object item : list) {
+      if (!(item instanceof String text)) {
+        throw new IllegalArgumentException("Payload com item textual inválido na lista: " + key);
+      }
+      result.add(text);
+    }
+    return List.copyOf(result);
+  }
+
   public static java.time.Instant instant(Map<String, Serializable> payload, String key) {
     Serializable value = payload.get(key);
     if (value instanceof java.time.Instant instant) {

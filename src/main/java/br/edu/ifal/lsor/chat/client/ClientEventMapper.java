@@ -9,11 +9,11 @@ import java.util.Optional;
 
 final class ClientEventMapper {
 
-  Optional<ClientEvent> map(ServerEvent event) {
+  Optional<ClientEvent> map(ServerEvent event, String ownUsername) {
     Map<String, Serializable> payload = event.payload();
     return switch (event.eventType()) {
-      case Events.DIRECT_MESSAGE -> Optional.of(directMessage(payload));
-      case Events.GROUP_MESSAGE -> Optional.of(groupMessage(payload));
+      case Events.DIRECT_MESSAGE -> Optional.of(directMessage(payload, ownUsername));
+      case Events.GROUP_MESSAGE -> Optional.of(groupMessage(payload, ownUsername));
       case Events.USER_ONLINE ->
           Optional.of(new ClientEvent.UserOnline(ClientUser.fromPayload(payload)));
       case Events.USER_OFFLINE ->
@@ -29,21 +29,23 @@ final class ClientEventMapper {
     };
   }
 
-  private ClientEvent directMessage(Map<String, Serializable> payload) {
+  private ClientEvent directMessage(Map<String, Serializable> payload, String ownUsername) {
     String from = ChatPayloads.string(payload, "fromUsername");
     String text = ChatPayloads.string(payload, "text");
     Instant createdAt = ChatPayloads.instant(payload, "createdAt");
+    boolean own = ownUsername != null && from.equals(ownUsername);
     return new ClientEvent.DirectMessage(
-        new ChatMessage(ConversationKind.DIRECT, from, from, text, createdAt, false));
+        new ChatMessage(ConversationKind.DIRECT, from, from, text, createdAt, own));
   }
 
-  private ClientEvent groupMessage(Map<String, Serializable> payload) {
+  private ClientEvent groupMessage(Map<String, Serializable> payload, String ownUsername) {
     String groupCode = ChatPayloads.string(payload, "groupCode");
     String author = ChatPayloads.string(payload, "authorUsername");
     String text = ChatPayloads.string(payload, "text");
     Instant createdAt = ChatPayloads.instant(payload, "createdAt");
+    boolean own = ownUsername != null && author.equals(ownUsername);
     return new ClientEvent.GroupMessage(
-        new ChatMessage(ConversationKind.GROUP, groupCode, author, text, createdAt, false));
+        new ChatMessage(ConversationKind.GROUP, groupCode, author, text, createdAt, own));
   }
 
   private ClientEvent groupChanged(Map<String, Serializable> payload, GroupEventKind kind) {

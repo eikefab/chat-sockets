@@ -17,6 +17,12 @@ dependencies {
     implementation(platform("org.apache.logging.log4j:log4j-bom:2.26.0"))
     implementation("org.apache.logging.log4j:log4j-api")
     implementation("org.apache.logging.log4j:log4j-core")
+    implementation("org.kordamp.ikonli:ikonli-javafx:12.3.1") {
+        exclude(group = "org.openjfx")
+    }
+    implementation("org.kordamp.ikonli:ikonli-materialdesign2-pack:12.3.1") {
+        exclude(group = "org.openjfx")
+    }
 
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")

@@ -109,7 +109,7 @@ public final class ChatClientGateway implements AutoCloseable {
   }
 
   private void handleEvent(br.edu.ifal.lsor.chat.protocol.ServerEvent event) {
-    eventMapper.map(event).ifPresent(eventListener);
+    eventMapper.map(event, username).ifPresent(eventListener);
   }
 
   private void handleDisconnect() {

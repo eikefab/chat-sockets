@@ -44,7 +44,8 @@ final class Payloads {
         "displayName", group.displayName(),
         "ownerUsername", group.ownerUsername(),
         "memberCount", group.memberCount(),
-        "isMember", group.hasMember(username));
+        "isMember", group.hasMember(username),
+        "memberUsernames", list(List.copyOf(group.memberUsernames())));
   }
 
   static Map<String, Serializable> messageAccepted(

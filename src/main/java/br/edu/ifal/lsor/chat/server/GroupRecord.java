@@ -42,7 +42,7 @@ final class GroupRecord {
   }
 
   Set<String> memberUsernames() {
-    return Set.copyOf(members);
+    return new LinkedHashSet<>(members);
   }
 
   int memberCount() {
