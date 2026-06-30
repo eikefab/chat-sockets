@@ -5,7 +5,7 @@ import java.io.ObjectInputFilter;
 public final class ChatObjectInputFilters {
 
   private static final String PROTOCOL_FILTER_PATTERN =
-      "maxdepth=20;maxrefs=1000;maxbytes=1000000;maxarray=1000000;"
+      "maxdepth=20;maxarray=1000000;"
           + "br.edu.ifal.lsor.chat.protocol.ClientRequest;"
           + "br.edu.ifal.lsor.chat.protocol.ServerResponse;"
           + "br.edu.ifal.lsor.chat.protocol.ServerEvent;"
